@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>개인정보 처리방침 — HUD for Riders</title>
+    <style>
+        :root {
+            --green: #00ff41;
+            --bg: #000;
+            --card: #0d0d0d;
+            --border: #1a1a1a;
+            --text: #ccc;
+            --muted: #555;
+            --orange: #f39c12;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+            font-size: 0.88rem;
+            line-height: 1.8;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        /* 헤더 */
+        .header {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 20px 18px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-logo {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--green);
+            letter-spacing: 6px;
+        }
+        .header-sub {
+            font-size: 0.65rem;
+            color: var(--muted);
+            letter-spacing: 2px;
+            margin-top: 2px;
+        }
+        .header-title {
+            font-size: 0.75rem;
+            color: #fff;
+            font-weight: 700;
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* 본문 */
+        .content {
+            padding: 20px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        /* 시행일 배너 */
+        .effective-banner {
+            background: rgba(0, 255, 65, 0.06);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            font-size: 0.75rem;
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        /* 섹션 */
+        .section {
+            margin-bottom: 28px;
+        }
+        .section-num {
+            font-size: 0.6rem;
+            color: var(--green);
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-body {
+            color: var(--text);
+        }
+
+        /* 테이블 */
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.82rem;
+        }
+        .info-table th {
+            background: #111;
+            color: var(--green);
+            font-weight: 700;
+            padding: 10px 12px;
+            text-align: left;
+            border: 1px solid var(--border);
+            white-space: nowrap;
+            width: 30%;
+        }
+        .info-table td {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            color: var(--text);
+            vertical-align: top;
+        }
+
+        /* 리스트 */
+        .dot-list {
+            padding-left: 4px;
+            margin: 8px 0;
+        }
+        .dot-list li {
+            list-style: none;
+            padding-left: 14px;
+            position: relative;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+        .dot-list li::before {
+            content: '·';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+            font-weight: 900;
+        }
+
+        /* 카드 박스 */
+        .card-box {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin: 10px 0;
+        }
+        .card-box-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        /* 위탁사 카드 */
+        .delegate-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--orange);
+            border-radius: 0 10px 10px 0;
+            padding: 12px 14px;
+            margin: 8px 0;
+        }
+        .delegate-name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--orange);
+            margin-bottom: 4px;
+        }
+        .delegate-detail {
+            font-size: 0.75rem;
+            color: var(--text);
+        }
+
+        /* 강조 박스 */
+        .highlight-box {
+            background: rgba(0, 255, 65, 0.04);
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .highlight-box b {
+            color: var(--green);
+        }
+
+        /* 책임자 카드 */
+        .officer-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin: 10px 0;
+        }
+        .officer-label {
+            font-size: 0.65rem;
+            color: var(--green);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .officer-name {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .officer-contact {
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+        .officer-contact a {
+            color: var(--green);
+            text-decoration: none;
+        }
+
+        /* 하단 */
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        /* 뒤로가기 버튼 */
+        .back-btn {
+            display: inline-block;
+            margin: 16px 20px 0;
+            padding: 10px 18px;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--green);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-logo">HUD</div>
+    <div class="header-sub">for Riders · Smart Tool Korea</div>
+    <div class="header-title">개인정보 처리방침</div>
+</div>
+
+<button class="back-btn" onclick="history.back()">← 돌아가기</button>
+
+<div class="content">
+
+    <div class="effective-banner">
+        📋 시행일: 2026년 4월 20일 &nbsp;|&nbsp; 버전: v1.1
+    </div>
+
+    <!-- 1. 총칙 -->
+    <div class="section">
+        <div class="section-num">Article 01</div>
+        <div class="section-title">총칙</div>
+        <div class="section-body">
+            Smart Tool Korea(이하 "운영자")는 HUD for Riders(이하 "앱")을 운영함에 있어 이용자의 개인정보를 소중히 보호합니다. 본 처리방침은 「개인정보보호법」, 「위치정보의 보호 및 이용 등에 관한 법률」, 「정보통신망 이용촉진 및 정보보호 등에 관한 법률」에 따라 작성되었습니다.
+        </div>
+    </div>
+
+    <!-- 2. 수집하는 개인정보 항목 -->
+    <div class="section">
+        <div class="section-num">Article 02</div>
+        <div class="section-title">수집하는 개인정보 항목 및 수집 방법</div>
+        <div class="section-body">
+            <table class="info-table">
+                <tr>
+                    <th>수집 항목</th>
+                    <td>위도, 경도 (GPS 정밀 위치)</td>
+                </tr>
+                <tr>
+                    <th>수집 방법</th>
+                    <td>이용자 동의 후 기기 GPS 센서를 통해 앱 사용 중 자동 수집</td>
+                </tr>
+                <tr>
+                    <th>수집 시점</th>
+                    <td>앱 포그라운드 실행 중에만 수집 (백그라운드 수집 없음)</td>
+                </tr>
+                <tr>
+                    <th>자동 생성 정보</th>
+                    <td>GPS 핀 저장 시 이용자가 직접 입력한 장소명, 메모 (기기 내 저장)</td>
+                </tr>
+            </table>
+            <div class="highlight-box">
+                <b>수집하지 않는 정보:</b> 이름, 전화번호, 이메일, 계정 정보, 기기 식별자(IMEI 등), 광고 ID, 쿠키, 결제 정보
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. 수집 및 이용 목적 -->
+    <div class="section">
+        <div class="section-num">Article 03</div>
+        <div class="section-title">개인정보 수집 및 이용 목적</div>
+        <div class="section-body">
+            <ul class="dot-list">
+                <li>저장된 GPS 핀과의 거리 계산 및 근접 알림</li>
+                <li>현재 위치 기반 GPS 핀 자동 저장</li>
+                <li>현재 위치 기반 날씨 정보 표시</li>
+                <li>현재 위치 기반 주소 자동 완성 (카카오 지도 API)</li>
+                <li>장소 목록 거리순 정렬</li>
+            </ul>
+            <div class="highlight-box">
+                수집된 위치정보는 <b>위 목적 이외에는 사용되지 않습니다.</b>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. 외부 서비스 전송 -->
+    <div class="section">
+        <div class="section-num">Article 04</div>
+        <div class="section-title">외부 서비스로의 위치정보 전송</div>
+        <div class="section-body">
+            <p style="margin-bottom:12px;">앱은 서비스 기능 제공을 위해 아래 외부 서비스에 위치 좌표를 전송합니다. 외부 서비스는 해당 기능 수행 목적으로만 좌표를 사용하며, 이용자 개인정보를 별도로 수집·저장하지 않습니다.</p>
+
+            <div class="delegate-card">
+                <div class="delegate-name">Open-Meteo (오픈 메테오)</div>
+                <div class="delegate-detail">
+                    전송 정보: 위도, 경도<br>
+                    전송 목적: 현재 위치 기반 날씨 정보 조회<br>
+                    전송 시점: 앱 실행 시 및 날씨 갱신 시<br>
+                    개인정보 처리방침: open-meteo.com
+                </div>
+            </div>
+
+            <div class="delegate-card">
+                <div class="delegate-name">(주)카카오 — 카카오 지도 API</div>
+                <div class="delegate-detail">
+                    전송 정보: 위도, 경도<br>
+                    전송 목적: 현재 위치의 주소 자동 완성 (역지오코딩)<br>
+                    전송 시점: "현위치 저장" 버튼 클릭 시<br>
+                    개인정보 처리방침: kakao.com/policy/privacy
+                </div>
+            </div>
+
+            <div class="highlight-box">
+                위 두 서비스 외의 서버로는 <b>어떠한 정보도 전송되지 않습니다.</b> 운영자는 이용자의 위치정보를 직접 수집하거나 저장하는 서버를 운영하지 않습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 보유 및 이용 기간 -->
+    <div class="section">
+        <div class="section-num">Article 05</div>
+        <div class="section-title">개인정보 보유 및 이용 기간</div>
+        <div class="section-body">
+            <table class="info-table">
+                <tr>
+                    <th>GPS 핀 데이터<br>(장소명, 좌표)</th>
+                    <td>이용자가 직접 삭제하거나 앱을 삭제할 때까지 기기 내 보유.<br>기기 외부로 전송·저장되지 않음.</td>
+                </tr>
+                <tr>
+                    <th>근무 기록</th>
+                    <td>이용자가 직접 삭제하거나 앱을 삭제할 때까지 기기 내 보유.</td>
+                </tr>
+                <tr>
+                    <th>실시간 위치정보</th>
+                    <td>앱 포그라운드 실행 중에만 처리. 기기 내 미저장, 앱 종료 시 즉시 소멸.</td>
+                </tr>
+                <tr>
+                    <th>동의 기록</th>
+                    <td>앱 삭제 시까지 기기 내 보유 (법적 의무 이행 목적).</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- 6. 개인정보 파기 -->
+    <div class="section">
+        <div class="section-num">Article 06</div>
+        <div class="section-title">개인정보 파기 절차 및 방법</div>
+        <div class="section-body">
+            <div class="card-box">
+                <div class="card-box-title">파기 절차</div>
+                모든 데이터는 이용자 기기의 로컬 저장소(localStorage)에만 저장됩니다. 이용자가 앱 내 삭제 기능을 사용하거나 앱을 삭제하면 데이터가 즉시 파기됩니다.
+            </div>
+            <div class="card-box">
+                <div class="card-box-title">파기 방법</div>
+                <ul class="dot-list">
+                    <li>기기 내 저장 데이터: 앱 내 PIN 초기화 기능 또는 기기에서 앱 삭제 시 즉시 파기</li>
+                    <li>실시간 위치정보: 앱 종료 또는 백그라운드 전환 시 즉시 소멸 (저장 없음)</li>
+                    <li>외부 전송 좌표: Open-Meteo·카카오 서버에서 요청 처리 후 보유하지 않음</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. 안전성 확보조치 (위치정보법 §16) -->
+    <div class="section">
+        <div class="section-num">Article 07</div>
+        <div class="section-title">안전성 확보조치</div>
+        <div class="section-body">
+            <p style="margin-bottom:12px;">운영자는 「개인정보보호법」 제29조 및 「위치정보의 보호 및 이용 등에 관한 법률」 제16조에 따라 다음과 같은 안전성 확보조치를 하고 있습니다.</p>
+
+            <div class="card-box">
+                <div class="card-box-title">1. 기술적 조치</div>
+                <ul class="dot-list">
+                    <li>저장 데이터 암호화: AES-256 알고리즘으로 기기 내 데이터 암호화</li>
+                    <li>인증 정보 보호: 6자리 PIN을 SHA-256으로 해싱하여 저장 (평문 미보관)</li>
+                    <li>로그인 시도 제한: 연속 실패 시 자동 잠금 처리</li>
+                    <li>전송 구간 암호화: 외부 API 통신은 HTTPS(TLS) 암호화 적용</li>
+                    <li>웹 보안: XSS 방지(escapeHtml/escapeAttr), CSP(Content Security Policy) 메타 태그 적용</li>
+                </ul>
+            </div>
+
+            <div class="card-box">
+                <div class="card-box-title">2. 관리적 조치</div>
+                <ul class="dot-list">
+                    <li>접근 통제: 운영자 별도 관리 서버 미운영으로 외부 접근 자체가 불가능</li>
+                    <li>처리 위탁 관리: 외부 API 위탁업체의 개인정보 처리방침 사전 검토 및 게시</li>
+                    <li>처리방침 정기 점검: 법령 변경 및 기능 변경 시 처리방침 업데이트</li>
+                </ul>
+            </div>
+
+            <div class="card-box">
+                <div class="card-box-title">3. 물리적 조치</div>
+                운영자는 이용자 개인정보를 저장하는 별도의 서버를 운영하지 않으므로, 물리적 보안조치는 해당사항 없음. 모든 데이터는 이용자 본인의 단말기 내에만 저장됩니다.
+            </div>
+
+            <div class="highlight-box">
+                <b>운영자 접근 불가:</b> 모든 이용자 데이터는 이용자 단말기 내에만 존재하며, 운영자는 이용자의 데이터를 열람·복제·이전할 수 없습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. 제3자 제공 -->
+    <div class="section">
+        <div class="section-num">Article 08</div>
+        <div class="section-title">개인정보 제3자 제공</div>
+        <div class="section-body">
+            운영자는 이용자의 개인정보를 제3자에게 제공하지 않습니다. 단, 아래의 경우는 예외입니다.
+            <ul class="dot-list" style="margin-top:10px;">
+                <li>이용자가 사전에 동의한 경우</li>
+                <li>법령의 규정에 의거하거나 수사 목적으로 관계 기관의 요청이 있는 경우</li>
+            </ul>
+            <div class="highlight-box" style="margin-top:12px;">
+                <b>4조의 외부 서비스 전송</b>은 서비스 기능 제공을 위한 처리위탁으로, 제3자 제공에 해당하지 않습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. 이용자 권리 -->
+    <div class="section">
+        <div class="section-num">Article 09</div>
+        <div class="section-title">이용자의 권리 및 행사 방법</div>
+        <div class="section-body">
+            이용자는 언제든지 다음의 권리를 행사할 수 있습니다.
+            <ul class="dot-list" style="margin-top:10px;">
+                <li><b style="color:#fff;">열람권:</b> 저장된 데이터는 앱 내 장소 목록 및 근무 내역에서 직접 확인 가능</li>
+                <li><b style="color:#fff;">삭제권:</b> 앱 내 삭제 기능 또는 PIN 초기화를 통해 즉시 삭제 가능</li>
+                <li><b style="color:#fff;">처리 정지권:</b> 위치 권한을 기기 설정에서 거부하면 위치정보 수집 즉시 중단</li>
+                <li><b style="color:#fff;">동의 철회:</b> 앱 삭제로 모든 데이터 및 동의 기록 파기</li>
+            </ul>
+            <div class="highlight-box" style="margin-top:12px;">
+                모든 데이터는 이용자 기기에만 저장되므로, 운영자는 이용자 데이터에 접근하거나 제공할 수 없습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. 위치정보 관련 특칙 -->
+    <div class="section">
+        <div class="section-num">Article 10</div>
+        <div class="section-title">위치정보 처리 특칙</div>
+        <div class="section-body">
+            <table class="info-table">
+                <tr>
+                    <th>위치 정확도</th>
+                    <td>정밀 위치(GPS) 사용. 저장된 핀과 30m 이내 접근 시 고정밀 모드로 자동 전환.</td>
+                </tr>
+                <tr>
+                    <th>수집 범위</th>
+                    <td>앱 포그라운드(화면 표시 중)에서만 수집. 백그라운드·앱 종료 시 수집 중단.</td>
+                </tr>
+                <tr>
+                    <th>수집 동의</th>
+                    <td>최초 실행 시 별도 동의 화면을 통해 명시적 동의 획득 후 수집.</td>
+                </tr>
+                <tr>
+                    <th>수집 거부</th>
+                    <td>동의 거부 시 위치 기반 기능(근접 알림, 거리 정렬, 날씨) 이용 불가. 그 외 기능은 정상 이용 가능.</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- 11. 개인위치정보주체의 권리 (위치정보법 §18, §27) -->
+    <div class="section">
+        <div class="section-num">Article 11</div>
+        <div class="section-title">개인위치정보주체의 권리</div>
+        <div class="section-body">
+            <p style="margin-bottom:12px;">「위치정보의 보호 및 이용 등에 관한 법률」에 따라 개인위치정보주체는 다음의 권리를 가집니다.</p>
+
+            <ul class="dot-list">
+                <li><b style="color:#fff;">동의 유보·거부권 (§18①):</b> 위치정보 수집·이용·제공에 대한 동의의 일부 또는 전부를 유보하거나 거부할 수 있습니다. 거부 시 위치 기반 기능은 이용할 수 없으나, 그 외 앱 기능은 정상 이용 가능합니다.</li>
+                <li><b style="color:#fff;">동의 철회권 (§24):</b> 동의한 위치정보 처리에 대해 언제든지 동의를 철회할 수 있습니다. 앱 내 동의 화면 또는 기기 위치 권한 거부, 앱 삭제로 철회 가능합니다.</li>
+                <li><b style="color:#fff;">처리 일시중지 요구권 (§24):</b> 위치정보의 수집·이용·제공의 일시중지를 요구할 수 있습니다. 기기 위치 권한 차단으로 즉시 중지됩니다.</li>
+                <li><b style="color:#fff;">열람·고지 요구권 (§24):</b> 위치정보 수집·이용·제공사실 확인자료의 열람 또는 고지를 요구할 수 있습니다.</li>
+                <li><b style="color:#fff;">정정 요구권 (§24):</b> 위치정보가 오류가 있을 경우 정정을 요구할 수 있습니다.</li>
+                <li><b style="color:#fff;">손해배상 청구권 (§27):</b> 운영자의 위치정보법 위반행위로 인하여 손해를 입은 경우 배상을 청구할 수 있습니다.</li>
+            </ul>
+
+            <div class="highlight-box">
+                <b>운영 안내:</b> 본 앱은 운영자 서버에서 위치정보를 수집·저장·제공하지 않습니다. 따라서 열람·고지·정정 요구의 대상이 되는 "수집·이용·제공사실 확인자료"가 운영자 측에 존재하지 않으며, 모든 위치정보 처리는 이용자 단말기 내에서 이용자 본인의 통제하에 이루어집니다.
+            </div>
+
+            <p style="margin-top:12px;font-size:0.78rem;">권리 행사 문의: <a href="mailto:smart.tool.kr@gmail.com" style="color:var(--green);text-decoration:none;">smart.tool.kr@gmail.com</a></p>
+        </div>
+    </div>
+
+    <!-- 12. 위치정보사업 신고 대상 여부 -->
+    <div class="section">
+        <div class="section-num">Article 12</div>
+        <div class="section-title">위치정보사업 신고 대상 여부</div>
+        <div class="section-body">
+            <p style="margin-bottom:12px;">「위치정보의 보호 및 이용 등에 관한 법률」 제5조(위치정보사업의 허가) 및 제9조(위치기반서비스사업의 신고)와 관련하여, 본 앱의 위치정보 처리 구조에 대해 다음과 같이 안내합니다.</p>
+
+            <div class="card-box">
+                <div class="card-box-title">처리 구조</div>
+                <ul class="dot-list">
+                    <li>운영자는 이용자의 위치정보를 수집·저장·제공하는 별도의 서버를 운영하지 않습니다.</li>
+                    <li>모든 위치정보는 이용자 단말기 내에서만 처리·저장됩니다.</li>
+                    <li>외부 API(Open-Meteo, 카카오 지도)로의 좌표 전송은 이용자의 단말기에서 직접 이루어지는 일회성 처리위탁이며, 운영자는 해당 좌표를 경유하거나 수집하지 않습니다.</li>
+                    <li>외부 API 위탁업체는 좌표를 일회성 요청 처리에만 사용하며, 운영자에게 이용자 위치정보를 회신하지 않습니다.</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box">
+                <b>신고 대상 해당 여부:</b> 위와 같은 구조상 운영자는 위치정보사업자(법 §5) 또는 위치기반서비스사업자(법 §9)의 신고 요건에 해당하지 않는 것으로 판단하고 있습니다. 향후 서버 기반 서비스로의 구조 변경 등 신고 요건이 발생할 경우, 관련 법령에 따라 사전 신고 후 처리방침에 반영하겠습니다.
+            </div>
+
+            <p style="margin-top:12px;font-size:0.75rem;color:var(--muted);">※ 본 항목은 운영자의 자체 판단에 따른 안내이며, 법적 자문을 대체하지 않습니다. 관련 문의는 방송통신위원회 또는 한국인터넷진흥원(KISA)에 직접 확인하시기 바랍니다.</p>
+        </div>
+    </div>
+
+    <!-- 13. 알림 권한 -->
+    <div class="section">
+        <div class="section-num">Article 13</div>
+        <div class="section-title">알림 권한</div>
+        <div class="section-body">
+            앱은 다음 목적으로 알림 권한을 요청합니다.
+            <ul class="dot-list" style="margin-top:10px;">
+                <li>근무 시간 경과 알림 (1시간 단위)</li>
+                <li>저장된 장소 근접 알림</li>
+                <li>날씨 변화 알림</li>
+                <li>데이터 리셋 사전 알림</li>
+            </ul>
+            알림 권한은 선택 사항이며, 거부해도 앱의 핵심 기능 이용에 제한이 없습니다. 기기 설정에서 언제든지 변경 가능합니다.
+        </div>
+    </div>
+
+    <!-- 11. 개인정보 보호책임자 -->
+    <div class="section">
+        <div class="section-num">Article 14</div>
+        <div class="section-title">개인정보 보호책임자</div>
+        <div class="section-body">
+            <div class="officer-card">
+                <div class="officer-label">PRIVACY OFFICER</div>
+                <div class="officer-name">Smart Tool Korea 운영자</div>
+                <div class="officer-contact">
+                    이메일:
+                    <a href="mailto:smart.tool.kr@gmail.com">smart.tool.kr@gmail.com</a><br>
+                    응답 기간: 영업일 기준 3일 이내
+                </div>
+            </div>
+            개인정보와 관련한 불만 처리 또는 피해 구제를 위해 아래 기관에도 문의할 수 있습니다.
+            <ul class="dot-list" style="margin-top:10px;">
+                <li>개인정보 침해신고센터: privacy.kisa.or.kr / 국번없이 118</li>
+                <li>개인정보 분쟁조정위원회: www.kopico.go.kr / 1833-6972</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 12. 처리방침 변경 -->
+    <div class="section">
+        <div class="section-num">Article 15</div>
+        <div class="section-title">개인정보 처리방침 변경</div>
+        <div class="section-body">
+            본 처리방침이 변경될 경우 다음과 같이 공지합니다.
+            <ul class="dot-list" style="margin-top:10px;">
+                <li>변경 내용은 앱 업데이트 시 본 처리방침 페이지를 통해 공지</li>
+                <li>중요한 변경(수집 항목 추가, 제3자 제공 등)의 경우 앱 내 별도 팝업 공지</li>
+                <li>변경 처리방침은 공지 후 7일 이후부터 효력 발생</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 13. 미성년자 -->
+    <div class="section">
+        <div class="section-num">Article 16</div>
+        <div class="section-title">미성년자 보호</div>
+        <div class="section-body">
+            본 앱은 배달 라이더 등 현장 근무자를 대상으로 하며, 만 14세 미만 아동의 개인정보를 의도적으로 수집하지 않습니다. 만 14세 미만 이용자의 경우 법정대리인의 동의가 필요합니다.
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    © 2026 Smart Tool Korea · HUD for Riders<br>
+    본 처리방침은 2026년 4월 20일부터 시행됩니다.
+</div>
+
+</body>
+</html>

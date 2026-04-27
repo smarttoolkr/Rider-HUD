@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HUD for Riders — 사용 설명서</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
+
+:root {
+  --green: #00ff41;
+  --green-dim: #00cc33;
+  --green-glow: rgba(0,255,65,0.15);
+  --green-glow2: rgba(0,255,65,0.07);
+  --bg: #000;
+  --card: #0a0a0a;
+  --card2: #111;
+  --border: #1a1a1a;
+  --border2: #222;
+  --text: #ccc;
+  --text-dim: #666;
+  --orange: #f39c12;
+  --red: #ff3e3e;
+  --yellow: #FEE500;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  overflow-x: hidden;
+}
+
+/* 스캔라인 오버레이 */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.04) 2px,
+    rgba(0,0,0,0.04) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ─── HEADER ─── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(0,0,0,0.92);
+  border-bottom: 1px solid var(--border2);
+  backdrop-filter: blur(8px);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+}
+.header-logo {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.15rem;
+  color: var(--green);
+  letter-spacing: 4px;
+  text-shadow: 0 0 8px rgba(0,255,65,0.5);
+}
+.header-badge {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+}
+
+/* ─── HERO ─── */
+.hero {
+  padding: 48px 20px 36px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 50% at 50% 0%, rgba(0,255,65,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-hud {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(3rem, 15vw, 5rem);
+  color: var(--green);
+  letter-spacing: 12px;
+  text-shadow: 0 0 20px rgba(0,255,65,0.6), 0 0 60px rgba(0,255,65,0.2);
+  animation: flicker 6s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%,95%,100% { opacity: 1; }
+  96% { opacity: 0.85; }
+  97% { opacity: 1; }
+  98% { opacity: 0.9; }
+}
+.hero-sub {
+  font-size: 0.85rem;
+  color: #fff;
+  letter-spacing: 4px;
+  margin-top: 6px;
+  font-weight: 300;
+}
+.hero-desc {
+  margin-top: 20px;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.8;
+}
+.hero-version {
+  margin-top: 16px;
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  border: 1px solid #222;
+  padding: 4px 12px;
+  border-radius: 20px;
+  letter-spacing: 2px;
+}
+
+/* ─── TOC ─── */
+.toc {
+  margin: 0 16px 32px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.toc-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--green);
+  letter-spacing: 3px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border2);
+  background: var(--green-glow2);
+}
+.toc-list {
+  list-style: none;
+  padding: 8px 0;
+}
+.toc-list li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.82rem;
+  transition: background 0.15s, color 0.15s;
+}
+.toc-list li a:hover { background: var(--green-glow2); color: var(--green); }
+.toc-num {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  min-width: 24px;
+}
+.toc-icon { font-size: 0.95rem; }
+
+/* ─── SECTION ─── */
+.section {
+  margin: 0 16px 40px;
+  scroll-margin-top: 64px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border2);
+}
+.section-num {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  min-width: 28px;
+}
+.section-icon { font-size: 1.2rem; }
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+/* ─── CARD ─── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card.green { border-left: 3px solid var(--green); }
+.card.orange { border-left: 3px solid var(--orange); }
+.card.red { border-left: 3px solid var(--red); }
+.card.yellow { border-left: 3px solid var(--yellow); }
+
+.card-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 8px;
+  font-family: 'Share Tech Mono', monospace;
+  letter-spacing: 1px;
+}
+.card-title.orange { color: var(--orange); }
+.card-title.red { color: var(--red); }
+.card-title.white { color: #fff; }
+.card-title.yellow { color: #c8a800; }
+
+/* ─── STEP LIST ─── */
+.steps {
+  list-style: none;
+  counter-reset: step;
+}
+.steps li {
+  counter-increment: step;
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.83rem;
+}
+.steps li:last-child { border-bottom: none; }
+.steps li::before {
+  content: counter(step);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--bg);
+  background: var(--green);
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.steps li b { color: #fff; }
+.steps li code {
+  font-family: 'Share Tech Mono', monospace;
+  background: #1a1a1a;
+  color: var(--green);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+/* ─── UI MOCK ─── */
+.ui-mock {
+  background: #050505;
+  border: 1px solid #1a1a1a;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 12px 0;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.75rem;
+  position: relative;
+}
+.ui-mock::before {
+  content: attr(data-label);
+  position: absolute;
+  top: -1px;
+  right: 12px;
+  background: #1a1a1a;
+  color: var(--text-dim);
+  font-size: 0.6rem;
+  padding: 2px 8px;
+  border-radius: 0 0 6px 6px;
+  letter-spacing: 1px;
+}
+.ui-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid #111;
+}
+.ui-row:last-child { border-bottom: none; }
+.ui-label { color: #555; font-size: 0.68rem; }
+.ui-val { color: var(--green); }
+.ui-val.white { color: #fff; }
+.ui-val.orange { color: var(--orange); }
+.ui-val.dim { color: #444; }
+
+/* ─── BTN SAMPLE ─── */
+.btn-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0;
+}
+.btn-sample {
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.btn-green { background: var(--green); color: #000; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-orange { background: var(--orange); color: #000; }
+.btn-yellow { background: var(--yellow); color: #000; }
+.btn-gray { background: #222; color: #888; border: 1px solid #444; }
+
+/* ─── TIP / WARNING ─── */
+.tip {
+  background: rgba(0,255,65,0.06);
+  border: 1px solid rgba(0,255,65,0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.tip::before {
+  content: '💡 TIP';
+  display: block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--green);
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+.warn {
+  background: rgba(255,62,62,0.06);
+  border: 1px solid rgba(255,62,62,0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: #ddd;
+}
+.warn::before {
+  content: '⚠️ 주의';
+  display: block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--red);
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+/* ─── FEATURE TAG ─── */
+.tag {
+  display: inline-block;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+.tag-green { background: rgba(0,255,65,0.12); color: var(--green); border: 1px solid rgba(0,255,65,0.3); }
+.tag-orange { background: rgba(243,156,18,0.12); color: var(--orange); border: 1px solid rgba(243,156,18,0.3); }
+.tag-red { background: rgba(255,62,62,0.12); color: var(--red); border: 1px solid rgba(255,62,62,0.3); }
+
+/* ─── DIVIDER ─── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 16px;
+}
+
+/* ─── FOOTER ─── */
+footer {
+  text-align: center;
+  padding: 32px 20px 48px;
+  border-top: 1px solid var(--border);
+}
+footer .footer-logo {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  color: var(--green);
+  letter-spacing: 6px;
+  opacity: 0.4;
+  margin-bottom: 8px;
+}
+footer p {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+footer a { color: var(--green); text-decoration: none; }
+
+/* ─── BACK TO TOP ─── */
+.back-top {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--green);
+  text-decoration: none;
+  box-shadow: 0 0 12px rgba(0,255,65,0.1);
+  transition: box-shadow 0.2s;
+  z-index: 50;
+}
+.back-top:hover { box-shadow: 0 0 20px rgba(0,255,65,0.3); }
+
+/* ─── INLINE CODE ─── */
+code {
+  font-family: 'Share Tech Mono', monospace;
+  background: #141414;
+  color: var(--green);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.82em;
+}
+
+p { margin-bottom: 8px; font-size: 0.85rem; }
+b, strong { color: #fff; }
+
+/* ─── FLOW DIAGRAM ─── */
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0;
+}
+.flow-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+}
+.flow-box {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 6px;
+  padding: 6px 12px;
+  flex: 1;
+  text-align: center;
+  font-size: 0.78rem;
+}
+.flow-box.green { border-color: var(--green); color: var(--green); }
+.flow-box.orange { border-color: var(--orange); color: var(--orange); }
+.flow-arrow { color: #333; font-size: 0.9rem; text-align: center; padding-left: 36px; }
+
+/* ─── PINPAD MOCK ─── */
+.pinpad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  gap: 8px;
+  justify-content: center;
+  margin: 14px 0;
+}
+.pin-key-demo {
+  width: 52px;
+  height: 40px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  color: #fff;
+}
+.pin-key-demo.fn { font-size: 0.6rem; color: #666; }
+
+/* 페이드인 애니메이션 */
+.section {
+  animation: fadeUp 0.4s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-logo">HUD</div>
+  <div class="header-badge">USER MANUAL · BETA 1</div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-hud">HUD</div>
+  <div class="hero-sub">for Riders</div>
+  <div class="hero-desc">GPS 핀 메모 · 음성 안내 · 근무 기록<br>현장 업무를 위한 올인원 대시보드</div>
+  <div class="hero-version">STORAGE v4 · BETA 1</div>
+</div>
+
+<!-- TOC -->
+<nav class="toc">
+  <div class="toc-title">CONTENTS</div>
+  <ul class="toc-list">
+    <li><a href="#s1"><span class="toc-num">01</span><span class="toc-icon">🚀</span>처음 시작하기</a></li>
+    <li><a href="#s2"><span class="toc-num">02</span><span class="toc-icon">📍</span>장소 저장</a></li>
+    <li><a href="#s3"><span class="toc-num">03</span><span class="toc-icon">🃏</span>히어로 카드 · 음성 안내</a></li>
+    <li><a href="#s4"><span class="toc-num">04</span><span class="toc-icon">⏱</span>근무 타이머</a></li>
+    <li><a href="#s5"><span class="toc-num">05</span><span class="toc-icon">📦</span>배달 카운터</a></li>
+    <li><a href="#s6"><span class="toc-num">06</span><span class="toc-icon">🏢</span>층수 버튼</a></li>
+    <li><a href="#s7"><span class="toc-num">07</span><span class="toc-icon">💰</span>시급 계산</a></li>
+    <li><a href="#s8"><span class="toc-num">08</span><span class="toc-icon">🚨</span>SOS · 긴급연락처</a></li>
+    <li><a href="#s9"><span class="toc-num">09</span><span class="toc-icon">🔔</span>알림 시스템</a></li>
+    <li><a href="#s10"><span class="toc-num">10</span><span class="toc-icon">💾</span>백업 · 복원</a></li>
+    <li><a href="#s11"><span class="toc-num">11</span><span class="toc-icon">🔒</span>PIN · 보안</a></li>
+    <li><a href="#s12"><span class="toc-num">12</span><span class="toc-icon">❓</span>자주 묻는 질문</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 01. 처음 시작하기 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s1">
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <span class="section-icon">🚀</span>
+    <span class="section-title">처음 시작하기</span>
+  </div>
+
+  <p>앱을 처음 실행하면 아래 순서로 초기 설정이 진행됩니다.</p>
+
+  <div class="flow">
+    <div class="flow-item">
+      <div class="flow-box green">스플래시 화면 (3초)</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-item">
+      <div class="flow-box">위치정보 동의 · 이용약관 동의</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-item">
+      <div class="flow-box">PIN 4자리 설정</div>
+    </div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-item">
+      <div class="flow-box green">앱 메인 화면</div>
+    </div>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">동의 화면</div>
+    <ul class="steps">
+      <li><b>위치정보 수집·이용 동의 (필수)</b> 체크 — GPS 기능 전체에 필요합니다</li>
+      <li><b>이용약관 및 개인정보 처리방침 동의 (필수)</b> 체크</li>
+      <li>두 항목 모두 체크 후 <b>"동의하고 시작하기"</b> 버튼 활성화</li>
+    </ul>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">PIN 설정</div>
+    <p>4자리 숫자를 두 번 입력하여 설정합니다. PIN은 앱 데이터 암호화 키로 사용되므로 반드시 기억하세요.</p>
+    <div class="pinpad">
+      <div class="pin-key-demo">1</div><div class="pin-key-demo">2</div><div class="pin-key-demo">3</div>
+      <div class="pin-key-demo">4</div><div class="pin-key-demo">5</div><div class="pin-key-demo">6</div>
+      <div class="pin-key-demo">7</div><div class="pin-key-demo">8</div><div class="pin-key-demo">9</div>
+      <div class="pin-key-demo fn">초기화</div><div class="pin-key-demo">0</div><div class="pin-key-demo fn">⌫</div>
+    </div>
+    <div class="warn">PIN을 분실하면 저장된 장소 데이터를 복구할 수 없습니다. 백업 파일도 동일한 PIN이 있어야 복원됩니다.</div>
+  </div>
+
+  <div class="tip">이후 앱을 열 때마다 PIN을 입력합니다. 근무 중에는 백그라운드로 전환해도 자동 잠금이 지연됩니다.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 02. 장소 저장 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s2">
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <span class="section-icon">📍</span>
+    <span class="section-title">장소 저장</span>
+  </div>
+
+  <p>자주 가는 배달지·건물을 저장해두면 가까워질 때 자동으로 메모를 음성 안내합니다.</p>
+
+  <div class="card green">
+    <div class="card-title">방법 A — 현위치 저장 (추천)</div>
+    <ul class="steps">
+      <li>목적지 <b>건물 앞</b>에서 <div class="btn-sample btn-green" style="display:inline-block;padding:3px 10px;font-size:0.7rem;">📍 현위치 저장</div> 버튼 탭</li>
+      <li>카카오 지도가 <b>건물명 또는 도로명</b>을 자동으로 입력란에 채웁니다</li>
+      <li>메모 입력란에 참고 정보를 입력 <span style="color:var(--text-dim);font-size:0.8rem;">(예: <code>B1</code> / <code>경비실 앞</code>)</span></li>
+      <li><div class="btn-sample btn-orange" style="display:inline-block;padding:3px 10px;font-size:0.7rem;">저장</div> 버튼 탭</li>
+    </ul>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">방법 B — 직접 입력</div>
+    <ul class="steps">
+      <li>장소명 입력란에 <b>건물명</b> 직접 입력</li>
+      <li>메모 입력란에 참고 정보 입력</li>
+      <li><div class="btn-sample btn-orange" style="display:inline-block;padding:3px 10px;font-size:0.7rem;">저장</div> 버튼 탭 — <strong>GPS 핀 없이</strong> 이름과 메모만 저장됩니다</li>
+    </ul>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">GPS 핀 추가 (📍¹ / 📍²)</div>
+    <p>각 장소에는 최대 <b>2개의 GPS 핀</b>을 설정할 수 있습니다. 정문·후문처럼 출입구가 여러 개인 건물에 유용합니다.</p>
+    <ul class="steps">
+      <li>목록에서 장소 항목의 <code>📌¹</code> 또는 <code>📌²</code> 버튼 탭</li>
+      <li><b>현재 위치</b>가 해당 핀으로 저장됩니다</li>
+      <li>저장 완료 시 아이콘이 <code>📍¹</code> 으로 바뀝니다</li>
+    </ul>
+    <div class="tip">핀이 없으면 거리 정렬과 음성 안내가 작동하지 않습니다. 반드시 현장에서 핀 저장을 해두세요.</div>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">수정 · 삭제</div>
+    <ul class="steps">
+      <li>목록 항목 오른쪽 <b>"수정"</b> 버튼 → 입력란에 내용 불러옴 → 수정 후 저장</li>
+      <li><b>"삭제"</b> 버튼 또는 항목 <b>3초 꾹 누르기</b> → 확인 후 삭제</li>
+    </ul>
+  </div>
+
+  <div class="ui-mock" data-label="장소 목록 예시">
+    <div class="ui-row">
+      <span class="ui-label">📍¹ 📍² &nbsp;0.02km</span>
+      <span class="ui-val orange">B1</span>
+    </div>
+    <div class="ui-row" style="color:#888;font-size:0.7rem;padding-left:4px;">
+      <span>롯데월드타워</span><span style="font-size:0.65rem;color:#444;">수정 &nbsp; 삭제</span>
+    </div>
+    <div class="ui-row" style="margin-top:6px;">
+      <span class="ui-label">📌¹ 📌² &nbsp;--</span>
+      <span class="ui-val dim">미입력</span>
+    </div>
+    <div class="ui-row" style="color:#555;font-size:0.7rem;padding-left:4px;">
+      <span>강남역</span><span style="font-size:0.65rem;color:#444;">수정 &nbsp; 삭제</span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 03. 히어로 카드 · 음성 안내 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s3">
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <span class="section-icon">🃏</span>
+    <span class="section-title">히어로 카드 · 음성 안내</span>
+  </div>
+
+  <p>화면 상단의 녹색 테두리 카드가 <b>히어로 카드</b>입니다. 가장 가까운 장소 정보를 대형 글씨로 표시합니다.</p>
+
+  <div class="ui-mock" data-label="히어로 카드 — 활성 상태">
+    <div class="ui-row">
+      <span class="ui-val white" style="font-size:0.85rem;font-weight:bold;">롯데월드타워</span>
+    </div>
+    <div style="text-align:center;padding:10px 0;">
+      <span style="font-size:1.8rem;color:var(--green);text-shadow:0 0 8px rgba(0,255,65,0.4);letter-spacing:4px;font-family:'Share Tech Mono',monospace;">B1</span>
+    </div>
+    <div class="ui-row">
+      <span class="ui-label">0.02km</span>
+      <span class="ui-label">🔊 음성 안내</span>
+    </div>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">음성 안내 조건 (모두 충족 시 자동 발화)</div>
+    <ul class="steps">
+      <li>장소까지 거리 <b>30m 이내</b> 진입</li>
+      <li>이동 속도 <b>15km/h 이하</b></li>
+      <li>GPS 정확도 <b>100m 이내</b></li>
+      <li>해당 장소 <b>첫 진입 시 1회</b> 안내 (300m 이상 이격 후 재진입 시 다시 안내)</li>
+    </ul>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">안전 모드 (기본 상태)</div>
+    <p>GPS 핀이 없거나 30m 이상 떨어져 있으면 히어로 카드는 <b>안전 운행 메시지</b>를 스크롤로 표시합니다. 카드를 탭하면 안전 모드 ↔ 활성 모드를 수동으로 전환할 수 있습니다.</p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 04. 근무 타이머 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s4">
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <span class="section-icon">⏱</span>
+    <span class="section-title">근무 타이머</span>
+  </div>
+
+  <div class="btn-grid">
+    <div class="btn-sample btn-green">START<br><span style="font-size:0.6rem;font-weight:400;">근무 시작</span></div>
+    <div class="btn-sample btn-red">STOP<br><span style="font-size:0.6rem;font-weight:400;">근무 종료</span></div>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">기본 사용법</div>
+    <ul class="steps">
+      <li>출근 시 <b>START</b> 탭 → 타이머 시작, 상태 표시 <code>● LIVE WORKING</code></li>
+      <li>퇴근 시 <b>STOP</b> 탭 → <b>수입 입력 팝업</b> 자동 등장</li>
+      <li>근무 시간이 <code>TOTAL WORK TIME</code>에 누적됩니다</li>
+    </ul>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">⚡ 미션 모드</div>
+    <p>MISSION 버튼을 탭하면 별도의 타이머가 시작됩니다. 단거리 집중 배달 등 <b>단위 미션</b> 시간을 측정할 때 사용하세요. START/STOP과 독립적으로 작동합니다.</p>
+    <ul class="steps">
+      <li><b>MISSION</b> 탭 → 주황색으로 활성화, 타이머 재시작</li>
+      <li>30분마다 경과 알림</li>
+      <li>건수 카운트 1건마다 알림 (미션 모드 전용)</li>
+      <li>STOP 탭 시 미션 모드 자동 해제</li>
+    </ul>
+  </div>
+
+  <div class="ui-mock" data-label="타이머 카드">
+    <div class="ui-row">
+      <div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:1.2rem;color:#fff;">02:34:18</div>
+        <div style="font-size:0.65rem;color:var(--green);margin-top:2px;">● LIVE WORKING</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div class="btn-sample btn-red" style="padding:4px 10px;font-size:0.7rem;">STOP</div>
+        <div class="btn-sample btn-gray" style="padding:4px 8px;font-size:0.55rem;">MISSION</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 05. 배달 카운터 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s5">
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <span class="section-icon">📦</span>
+    <span class="section-title">배달 카운터</span>
+  </div>
+
+  <p>화면 중앙의 큰 숫자가 오늘의 총 배달 건수입니다.</p>
+
+  <div class="card green">
+    <div class="card-title">조작 방법</div>
+    <ul class="steps">
+      <li><b>+ 버튼</b> 탭 → 건수 +1 (진동 + 비프음)</li>
+      <li>층수 버튼 탭 후 해제 → 건수 자동 +1 (층수 안내도 함께)</li>
+      <li><b>− 버튼</b> 탭 → 건수 −1 (잘못 누른 경우)</li>
+      <li>숫자 탭 → <b>Total Count ↔ 시간당 건수 (건/h)</b> 모드 전환</li>
+    </ul>
+  </div>
+
+  <div class="tip">5건마다 달성 알림이 울립니다 (미션 모드에서는 1건마다). 시간당 건수 모드에서는 숫자가 주황색으로 표시됩니다.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 06. 층수 버튼 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s6">
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <span class="section-icon">🏢</span>
+    <span class="section-title">층수 버튼</span>
+  </div>
+
+  <div class="btn-grid" style="grid-template-columns:repeat(4,1fr);">
+    <div class="btn-sample btn-gray" style="font-size:1rem;">1F</div>
+    <div class="btn-sample btn-red" style="font-size:1rem;">B1</div>
+    <div class="btn-sample btn-gray" style="font-size:1rem;">B2</div>
+    <div class="btn-sample btn-gray" style="font-size:1rem;">B3</div>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">사용법</div>
+    <ul class="steps">
+      <li>지하 주차장 진입 시 해당 층 버튼 탭 → 음성 안내 발화 (예: <b>"지하이층"</b>)</li>
+      <li>버튼이 빨간색으로 활성화 → 주차 위치 표시</li>
+      <li>같은 버튼 다시 탭 → 해제 + 배달 건수 <b>+1 자동 카운트</b></li>
+    </ul>
+  </div>
+
+  <div class="tip">주차장 진입 후 층수를 기록해두면, 복귀 시 어느 층이었는지 바로 확인할 수 있습니다.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 07. 시급 계산 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s7">
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <span class="section-icon">💰</span>
+    <span class="section-title">시급 계산</span>
+  </div>
+
+  <p>STOP을 탭하면 수입 입력 팝업이 자동으로 나타납니다.</p>
+
+  <div class="card green">
+    <div class="card-title">수입 입력 팝업</div>
+    <ul class="steps">
+      <li>오늘 정산 수입을 입력 (숫자만)</li>
+      <li><b>시급 계산</b> 탭 → 근무시간 기반 시급 즉시 표시</li>
+      <li><b>저장</b> 탭 → 기록 저장 (당일 여러 번 저장 시 누산)</li>
+      <li><b>닫기</b> 탭 → 저장 없이 종료</li>
+    </ul>
+  </div>
+
+  <div class="ui-mock" data-label="시급 팝업 예시">
+    <div class="ui-row"><span class="ui-label">근무시간</span><span class="ui-val white">6.5시간</span></div>
+    <div class="ui-row"><span class="ui-label">건수</span><span class="ui-val white">42건</span></div>
+    <div class="ui-row"><span class="ui-label">시급</span><span class="ui-val" style="font-size:1.1rem;color:var(--green);">23,077원</span></div>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">근무 기록 보기</div>
+    <p><b>"기록"</b> 버튼을 탭하면 날짜별 근무 내역(시간·건수·수입·시급)을 최신순으로 확인할 수 있습니다.</p>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 08. SOS · 긴급연락처 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s8">
+  <div class="section-header">
+    <span class="section-num">08</span>
+    <span class="section-icon">🚨</span>
+    <span class="section-title">SOS · 긴급연락처</span>
+  </div>
+
+  <p>홈 화면 하단의 <b>[긴급]</b> 버튼을 탭하면 긴급연락처 페이지가 열립니다. 페이지 상단의 SOS 버튼은 응급 신고 보조 도구이며, 하단에서 자주 사용하는 연락처를 카테고리별로 관리할 수 있습니다.</p>
+
+  <div class="card red">
+    <div class="card-title">SOS 버튼 사용법</div>
+    <ul class="steps">
+      <li><b>2초간 길게 누름</b> → 진행 게이지가 채워짐</li>
+      <li>완료 시 진동 발생 + 현재 GPS 좌표가 클립보드에 복사</li>
+      <li>음성으로 "위치를 클립보드에 복사했습니다" 안내</li>
+      <li>확인 모달이 열림 → <b>[다이얼 열기]</b> 탭하면 119 다이얼 화면 호출</li>
+      <li>다이얼 화면에서 <b>통화 버튼을 직접 눌러</b> 신고</li>
+      <li>신고 시 복사된 좌표를 구두로 전달하거나 메시지로 붙여넣어 사용</li>
+    </ul>
+  </div>
+
+  <div class="warn"><b>⚠️ 자동 통화 없음:</b> 본 앱은 임의로 119에 전화를 걸지 않습니다. 다이얼 화면 호출만 수행하며, 실제 통화 연결은 이용자가 직접 통화 버튼을 눌러야 합니다. 응급상황에서는 본 앱에 의존하지 말고 119에 직접 연락하세요.</div>
+
+  <div class="card green">
+    <div class="card-title">긴급연락처 카테고리</div>
+    <ul class="steps">
+      <li><b>공공 기본</b> (수정 불가): 119 화재·구급 / 112 경찰 / 1339 응급의료상담</li>
+      <li><b>플랫폼</b>: 배달 플랫폼 고객센터</li>
+      <li><b>보험</b>: 보험사 사고접수 번호</li>
+      <li><b>소속</b>: 대리점·지사 연락처</li>
+      <li><b>기타</b>: 가족·지인 등 자유 등록</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">연락처 추가 · 수정 · 삭제</div>
+    <ul class="steps">
+      <li><b>추가:</b> 카테고리 헤더의 [+] 버튼 탭 → 이름·번호 입력</li>
+      <li><b>전화 걸기:</b> 연락처 카드 탭 → 다이얼 화면 호출</li>
+      <li><b>수정:</b> 카드 우측 [편집] 아이콘 탭</li>
+      <li><b>삭제:</b> 편집 모드에서 [삭제] 탭</li>
+    </ul>
+  </div>
+
+  <div class="tip">사용자 등록 연락처는 PIN 기반 AES-256 암호화로 기기 내에 저장됩니다. 운영자 서버에는 전송되지 않습니다.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 09. 알림 시스템 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s9">
+  <div class="section-header">
+    <span class="section-num">09</span>
+    <span class="section-icon">🔔</span>
+    <span class="section-title">알림 시스템</span>
+  </div>
+
+  <p>앱은 아래 상황에서 자동으로 진동·음성·팝업 알림을 발생시킵니다.</p>
+
+  <div class="card green">
+    <div class="card-title">근무 알림</div>
+    <table style="width:100%;font-size:0.78rem;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:6px 0;color:#888;width:45%;">매 1시간 경과</td>
+        <td style="color:#ccc;">근무 시간 + 건당 시간</td>
+      </tr>
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:6px 0;color:#888;">2시간 연속 근무</td>
+        <td style="color:#ccc;">5분 휴식 권장</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#888;">5건 달성마다</td>
+        <td style="color:#ccc;">건수 마일스톤</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="tip">알림은 히어로 카드에도 스크롤 텍스트로 표시됩니다. 기기 알림 권한이 허용된 경우 시스템 알림도 함께 발생합니다.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 10. 백업 · 복원 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s10">
+  <div class="section-header">
+    <span class="section-num">10</span>
+    <span class="section-icon">💾</span>
+    <span class="section-title">백업 · 복원</span>
+  </div>
+
+  <p>장소 데이터와 근무 기록을 암호화 파일로 내보낼 수 있습니다.</p>
+
+  <div class="card green">
+    <div class="card-title">백업 (내보내기)</div>
+    <ul class="steps">
+      <li><b>"기록"</b> 버튼 탭 → 기록 화면 이동</li>
+      <li><b>"백업"</b> 버튼 탭</li>
+      <li><code>hud_backup_YYYYMMDD.enc</code> 파일이 다운로드됩니다</li>
+      <li>파일을 <b>클라우드 드라이브</b> 등 안전한 곳에 보관하세요</li>
+    </ul>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">복원 (불러오기)</div>
+    <ul class="steps">
+      <li><b>"복원"</b> 버튼 탭 → 파일 선택</li>
+      <li>백업 생성 시와 <b>동일한 PIN</b>으로 잠금해제된 상태여야 합니다</li>
+      <li>복원 시 현재 데이터가 <b>모두 덮어씌워집니다</b> — 확인 팝업 꼭 읽기</li>
+    </ul>
+  </div>
+
+  <div class="warn">백업 파일은 PIN으로 AES 암호화되어 있습니다. PIN이 다르면 복원이 불가능합니다. 기기 교체 시 반드시 백업 먼저 받으세요.</div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 11. PIN · 보안 -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s11">
+  <div class="section-header">
+    <span class="section-num">11</span>
+    <span class="section-icon">🔒</span>
+    <span class="section-title">PIN · 보안</span>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">자동 잠금</div>
+    <p>백그라운드로 전환 후 일정 시간이 지나면 자동으로 잠금됩니다. <strong>근무 중(타이머 실행 중)에는 자동 잠금이 작동하지 않습니다.</strong></p>
+  </div>
+
+  <div class="card red">
+    <div class="card-title red">PIN 초기화</div>
+    <p>PIN을 잊어버린 경우 잠금 화면 하단 <b>"PIN 초기화"</b>를 탭하세요.</p>
+    <div class="warn">PIN 초기화 시 <b>암호화된 장소 데이터 전체가 삭제</b>됩니다. 백업이 없으면 복구 불가능합니다. 근무 기록은 선택적으로 유지할 수 있습니다.</div>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">데이터 보안 방식</div>
+    <table style="width:100%;font-size:0.78rem;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:6px 0;color:#888;width:40%;">암호화</td>
+        <td style="color:#ccc;">AES-256 (CryptoJS)</td>
+      </tr>
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:6px 0;color:#888;">키 파생</td>
+        <td style="color:#ccc;">PBKDF2 (SHA-256, 10,000 rounds)</td>
+      </tr>
+      <tr style="border-bottom:1px solid #222;">
+        <td style="padding:6px 0;color:#888;">PIN 저장</td>
+        <td style="color:#ccc;">SHA-256 해시 (원문 미저장)</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;color:#888;">서버 전송</td>
+        <td style="color:var(--green);">없음 — 기기 내 전용</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- 12. FAQ -->
+<!-- ═══════════════════════════════════════════ -->
+<section class="section" id="s12">
+  <div class="section-header">
+    <span class="section-num">12</span>
+    <span class="section-icon">❓</span>
+    <span class="section-title">자주 묻는 질문</span>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">음성 안내가 안 나와요</div>
+    <ul class="steps">
+      <li>기기 음량이 0인지 확인</li>
+      <li>GPS 핀이 저장되어 있는지 확인 (<code>📌¹</code> → <code>📍¹</code>)</li>
+      <li>이동 속도가 15km/h를 초과하면 안내되지 않습니다</li>
+      <li>같은 장소에서 이미 안내된 경우 → 300m 이상 이동 후 재진입 필요</li>
+    </ul>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">GPS 신호가 약하다고 나와요</div>
+    <ul class="steps">
+      <li>실내·지하·터널에서는 GPS 수신이 어렵습니다</li>
+      <li>경고 표시는 3회 연속 실패 시 나타납니다 — 야외로 이동하면 자동 해제</li>
+      <li>브라우저 위치 권한이 "허용"으로 설정되어 있는지 확인하세요</li>
+    </ul>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">데이터가 사라졌어요</div>
+    <ul class="steps">
+      <li>PIN을 바꾸거나 초기화한 경우 장소 데이터가 삭제될 수 있습니다</li>
+      <li>백업 파일이 있다면 복원 기능을 이용하세요</li>
+    </ul>
+  </div>
+
+  <div class="card orange">
+    <div class="card-title orange">카카오 지도 주소 검색이 안 돼요</div>
+    <ul class="steps">
+      <li>네트워크 연결을 확인하세요</li>
+      <li>카카오 API는 등록된 도메인에서만 작동합니다 (Netlify 배포 후 정상)</li>
+      <li>로컬 파일(<code>file://</code>)로 열면 카카오 기능이 비활성화됩니다</li>
+    </ul>
+  </div>
+
+  <div class="card green">
+    <div class="card-title">저장 공간이 부족하다는 경고가 떠요</div>
+    <p>기록 화면에서 오래된 근무 기록을 백업 후 삭제하세요. 기기 브라우저 저장소 용량 제한에 도달한 상태입니다.</p>
+  </div>
+
+  <div style="margin-top:24px;padding:16px;background:#0a0a0a;border:1px solid #1a1a1a;border-radius:10px;text-align:center;">
+    <div style="font-size:0.7rem;color:#555;margin-bottom:8px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;">SUPPORT</div>
+    <a href="mailto:smart.tool.kr@gmail.com" style="color:var(--green);font-size:0.85rem;text-decoration:none;">smart.tool.kr@gmail.com</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">HUD</div>
+  <p>© 2025 Smart Tool &nbsp;·&nbsp; <a href="privacy.html">개인정보 처리방침</a> &nbsp;·&nbsp; <a href="terms.html">이용약관</a></p>
+  <p style="margin-top:6px;">All data stored on-device only. No server transmission.</p>
+</footer>
+
+<a href="#" class="back-top" title="맨 위로">↑</a>
+
+</body>
+</html>

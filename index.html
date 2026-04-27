@@ -1,0 +1,3022 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="HUD">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://dapi.kakao.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://dapi.kakao.com https://*.kakao.com https://api.open-meteo.com; media-src 'self';">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>HUD for Riders</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js" crossorigin="anonymous"></script>
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=5cbbea4b61db8f087cbd442245871afe&libraries=services&autoload=false"></script>
+    <style>
+        :root {
+            --main-green: #00ff41; --bg-dark: #000000; --card-bg: #121212;
+            --accent-red: #ff3e3e; --kakao-yellow: #FEE500; --save-orange: #f39c12;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body { background-color: var(--bg-dark); color: #fff; font-family: -apple-system, sans-serif; overflow-y: auto; -webkit-overflow-scrolling: touch; min-height: 100vh; width: 100vw; display: flex; flex-direction: column; }
+        .container { display: flex; flex-direction: column; padding: 10px; gap: 12px; flex: 1; min-height: 0; }
+
+        .header-panel { text-align: center; display: flex; flex-direction: column; align-items: center; margin-top: 2px; }
+        .hud-logo { font-size: 1.8rem; font-weight: 900; color: var(--main-green); letter-spacing: 4px; }
+        .app-subtitle { display: none; } /* v4.5 정비: for Riders v1.0은 하단 카피라이트로 이동 */
+        .sub-riders { font-size: 0.9rem; color: #fff; font-weight: 900; letter-spacing: 2px; }
+        .sub-version { font-size: 0.5rem; color: #555; font-weight: 600; letter-spacing: 1px; }
+        .date-weather-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.73rem; color: #888; margin-top: 6px; }
+        .date-sep { color: #444; }
+
+        .timer-card { display: flex; align-items: center; justify-content: space-between; background: var(--card-bg); padding: 10px 14px; border-radius: 12px; border: 1px solid #222; }
+        .timer-info { display: flex; flex-direction: column; }
+        .timer-display { font-size: 1.35rem; font-family: monospace; font-weight: bold; color: #fff; }
+        .timer-status { font-size: 0.6rem; font-weight: bold; margin-top: 4px; }
+        .status-live { color: var(--main-green); }
+        .status-total { color: var(--save-orange); }
+
+        .btn-toggle { width: clamp(54px,11vw,70px); height: clamp(28px,5.5vw,34px); border: none; border-radius: 8px; font-weight: bold; font-size: clamp(0.7rem,2vw,0.85rem); cursor: pointer; }
+        .btn-start { background-color: var(--main-green); color: #000; }
+        .btn-stop { background-color: var(--accent-red); color: #fff; }
+        .btn-mission { width: clamp(54px,11vw,70px); height: clamp(28px,5.5vw,34px); border: 1px solid #555; border-radius: 8px; background: #222; color: #888; font-weight: bold; font-size: clamp(0.52rem,1.5vw,0.65rem); cursor: pointer; transition: all 0.2s; }
+        .btn-mission.active { border-color: var(--save-orange); color: var(--save-orange); background: rgba(243,156,18,0.15); }
+
+        .hero-card { background: linear-gradient(135deg,#1a1a2e 0%,#0a0a0a 100%); border: 1px solid var(--main-green); border-radius: 15px; padding: 20px 18px; text-align: center; box-shadow: 0 0 15px rgba(0,255,65,0.1); display: none; height: 155px; overflow: hidden; }
+        .hero-card.visible { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; }
+        .hero-place-name { font-size: 1.3rem; font-weight: 900; color: #fff; margin-bottom: 10px; }
+        .hero-memo { font-size: 2.2rem; font-weight: 900; color: var(--main-green); letter-spacing: 3px; text-shadow: 0 0 8px rgba(0,255,65,0.4); }
+        .hero-dist { font-size: 0.7rem; color: #888; margin-top: 10px; }
+        .hero-tts-status { font-size: 0.6rem; color: #555; margin-top: 4px; }
+        .hero-scroll-wrap { overflow: hidden; white-space: nowrap; }
+        .hero-scroll-wrap span { display: inline-block; white-space: nowrap; animation: heroScroll 25s linear infinite; }
+        @keyframes heroScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+        .hero-card.safety { border-color: #444; box-shadow: none; }
+
+        .delivery-panel { background: #111; border: 1px solid #333; border-radius: 15px; padding: 12px; }
+        .floor-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 12px; }
+        .floor-btn { background: #222; border: 1px solid #444; color: #fff; height: 55px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; }
+        .floor-btn.active { background: var(--accent-red) !important; border-color: var(--accent-red); }
+
+        .counter-area { display: flex; justify-content: center; align-items: center; gap: 16px; border-top: 1px solid #222; padding-top: 10px; }
+        .btn-math { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--main-green); background: transparent; color: var(--main-green); font-size: 1.5rem; cursor: pointer; }
+        /* v4.5: PICK UP / DROP 버튼 */
+        .btn-pickup { min-width: 80px; height: 52px; border-radius: 10px; border: 2px solid #ff9800; background: transparent; color: #ff9800; font-size: 0.85rem; font-weight: 900; letter-spacing: 1px; cursor: pointer; transition: all 0.2s; }
+        .btn-pickup.active { background: #ff9800; color: #000; box-shadow: 0 0 12px rgba(255,152,0,0.4); }
+        .btn-drop { min-width: 80px; height: 52px; border-radius: 10px; border: 2px solid var(--main-green); background: transparent; color: var(--main-green); font-size: 0.85rem; font-weight: 900; letter-spacing: 1px; cursor: pointer; }
+        .btn-drop:active { background: var(--main-green); color: #000; }
+        /* v4.5: 미니 +/- 보조 버튼 (오조작 수정용) */
+        .count-mini-btns { display: flex; gap: 8px; justify-content: center; margin-top: 4px; }
+        .btn-math-mini { width: 28px; height: 24px; border-radius: 6px; border: 1px solid #444; background: transparent; color: #888; font-size: 0.9rem; cursor: pointer; line-height: 1; }
+        /* v4.5: 히어로 카드 픽업 중 표시 */
+        /* v4.6: 왼쪽 상단 이동 + 경과 시간 표시 + 45분 이상 빨강 깜박임 */
+        /* v1.0.4: 배지(.pickup-indicator) + 시간(.pickup-time) 분리 — 시간 강조 */
+        .pickup-area {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 2;
+        }
+        .pickup-area.visible {
+            display: flex;
+        }
+        .pickup-indicator { 
+            background: #ff9800; 
+            color: #000; 
+            font-size: 0.72rem; 
+            font-weight: 900; 
+            padding: 4px 10px; 
+            border-radius: 12px; 
+            letter-spacing: 0.3px; 
+            cursor: pointer; 
+            user-select: none;
+            white-space: nowrap;
+        }
+        .pickup-indicator:active { opacity: 0.7; }
+        /* v1.0.4: 시간 — 흰색 큰 글씨로 가독성 강조 */
+        .pickup-time {
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 900;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+        /* 경고 상태 — 배지와 시간 모두 변화 */
+        .pickup-area.warning .pickup-indicator { 
+            background: #e53935; 
+            color: #fff;
+            animation: pickup-blink 1s ease-in-out infinite;
+        }
+        .pickup-area.warning .pickup-time {
+            color: #ffeb3b;  /* 노란색 — 빨간 배지와 대비 */
+        }
+        @keyframes pickup-blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .hero-card { position: relative; }
+        .count-num { font-size: 2.8rem; font-weight: 900; min-width: 80px; text-align: center; cursor: pointer; user-select: none; transition: color 0.2s; }
+        .count-num.hourly-mode { color: var(--save-orange); }
+        .count-label { font-size: 0.65rem; color: #888; text-align: center; margin-top: -2px; }
+
+        .input-panel { background: #0a0a0a; border: 1px solid #222; border-radius: 15px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .place-input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; }
+        .input-wrap { position: relative; width: 100%; }
+        .input-wrap .place-input { width: 100%; }
+        .input-wrap .scroll-placeholder { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 12px; overflow: hidden; pointer-events: none; display: flex; align-items: center; border-radius: 8px; }
+        .input-wrap .scroll-placeholder span { white-space: nowrap; font-size: 0.8rem; color: #888; animation: scrollPh 25s linear infinite; }
+        .input-wrap .scroll-placeholder.hidden { display: none; }
+        @keyframes scrollPh { 0%{transform:translateX(0)} 100%{transform:translateX(-100%)} }
+        .btn-save { width: 100%; background: var(--save-orange); color: #000; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-locate { width: 100%; background: var(--main-green); color: #000; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem; margin-bottom: 4px; }
+        .action-btns { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; width: 100%; }
+        .keymap-btn { background: var(--kakao-yellow); color: #000; border: none; padding: 16px 10px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .emergency-btn { background: var(--accent-red); color: #fff; border: none; padding: 16px 10px; border-radius: 10px; font-weight: 900; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .history-btn { background: var(--main-green); color: #000; border: none; padding: 16px 10px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .settings-btn { background: #444; color: #fff; border: none; padding: 16px 10px; border-radius: 10px; font-weight: bold; font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .copyright { font-size: 0.72rem; color: #777; text-align: center; margin-top: 8px; letter-spacing: 0.3px; line-height: 1.4; }
+
+        .history-page { display: none; position: fixed; inset: 0; background: #000; z-index: 500; flex-direction: column; overflow-y: auto; }
+        .history-page.open { display: flex; }
+        .history-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #222; }
+        .history-back { background: none; border: none; color: var(--main-green); font-size: 0.9rem; font-weight: bold; cursor: pointer; }
+        .history-title { font-size: 1rem; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        .history-list { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+        .history-item { background: #121212; border: 1px solid #222; border-radius: 12px; padding: 14px; border-left: 4px solid var(--main-green); }
+        .history-date { font-size: 0.75rem; color: var(--main-green); font-weight: bold; margin-bottom: 8px; }
+        .history-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: #ccc; padding: 3px 0; }
+        .history-row span:last-child { color: #fff; font-weight: bold; }
+        .history-empty { text-align: center; color: #555; padding: 40px; font-size: 0.85rem; }
+
+        /* ===== 통계 페이지 신규 (v1.0) ===== */
+        .stats-summary { margin: 14px; padding: 18px; background: linear-gradient(135deg,#0d2a1a 0%,#0a0a0a 100%); border: 1px solid var(--main-green); border-radius: 14px; text-align: center; }
+        .stats-summary-label { font-size: 0.65rem; color: var(--main-green); font-weight: 900; letter-spacing: 2px; margin-bottom: 6px; }
+        .stats-summary-value { font-size: 1.7rem; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        .stats-summary-sub { font-size: 0.75rem; color: #aaa; margin-top: 6px; }
+        .stats-tabs { display: flex; gap: 6px; padding: 0 14px; margin-bottom: 10px; }
+        .stats-tab { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #222; border-radius: 8px; color: #888; font-size: 0.75rem; font-weight: 700; cursor: pointer; text-align: center; }
+        .stats-tab.active { background: var(--main-green); color: #000; border-color: var(--main-green); }
+        .stats-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 14px; margin-bottom: 14px; }
+        .stats-card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 12px; }
+        .stats-card-label { font-size: 0.65rem; color: #888; margin-bottom: 4px; }
+        .stats-card-value { font-size: 0.95rem; font-weight: 900; color: #fff; }
+        .stats-graph-box { margin: 0 14px 14px; padding: 14px; background: #111; border: 1px solid #222; border-radius: 10px; }
+        .stats-graph-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .stats-graph-title { font-size: 0.8rem; font-weight: 700; color: #fff; }
+        .stats-graph-switch { display: flex; gap: 4px; }
+        .stats-graph-btn { padding: 4px 10px; background: #222; border: 1px solid #333; border-radius: 6px; color: #888; font-size: 0.65rem; cursor: pointer; }
+        .stats-graph-btn.active { background: var(--main-green); color: #000; border-color: var(--main-green); }
+        .stats-bars { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+        .stats-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .stats-bar { width: 100%; background: linear-gradient(180deg,var(--main-green) 0%,#006b1c 100%); border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.3s; }
+        .stats-bar.empty { background: #222; }
+        .stats-bar-label { font-size: 0.55rem; color: #666; }
+        .stats-bar-val { font-size: 0.6rem; color: #ccc; font-weight: 700; }
+
+        /* ===== 설정 페이지 신규 (v1.0) ===== */
+        .settings-page { display: none; position: fixed; inset: 0; background: #000; z-index: 500; flex-direction: column; overflow-y: auto; }
+        .settings-page.open { display: flex; }
+        .settings-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #000; z-index: 10; }
+        .settings-back { background: none; border: none; color: var(--main-green); font-size: 0.9rem; font-weight: bold; cursor: pointer; }
+        .settings-title { font-size: 1rem; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        .settings-section { margin: 14px; padding: 16px; background: #111; border: 1px solid #222; border-radius: 12px; }
+        .settings-section-title { font-size: 0.75rem; color: var(--main-green); font-weight: 900; letter-spacing: 2px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #222; }
+        .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-row-label { font-size: 0.82rem; color: #fff; }
+        .settings-row-desc { font-size: 0.65rem; color: #666; margin-top: 2px; }
+        .settings-preset-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; width: 100%; margin-top: 8px; }
+        .settings-preset-grid-5 { grid-template-columns: repeat(5, 1fr); }
+        .settings-preset-btn { padding: 8px 4px; background: #1a1a1a; border: 1px solid #222; border-radius: 6px; color: #888; font-size: 0.7rem; cursor: pointer; text-align: center; font-weight: 700; }
+        .settings-preset-btn.active { background: var(--main-green); color: #000; border-color: var(--main-green); }
+        .settings-slider { width: 100%; -webkit-appearance: none; height: 6px; background: #222; border-radius: 3px; outline: none; margin-top: 8px; }
+        .settings-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; background: var(--main-green); border-radius: 50%; cursor: pointer; }
+        .settings-action-btn { width: 100%; padding: 12px; background: #222; border: 1px solid #333; border-radius: 8px; color: #fff; font-size: 0.82rem; font-weight: 700; cursor: pointer; margin-top: 6px; text-align: left; display: flex; justify-content: space-between; align-items: center; }
+        .settings-action-btn:hover { background: #2a2a2a; }
+        .settings-action-btn.danger { border-color: var(--accent-red); color: var(--accent-red); }
+        .settings-info-row { font-size: 0.75rem; color: #aaa; padding: 8px 0; display: flex; justify-content: space-between; }
+        .settings-info-row a { color: var(--main-green); text-decoration: none; }
+        /* v4.6: 토글 스위치 */
+        .settings-toggle { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+        .settings-toggle input { opacity: 0; width: 0; height: 0; }
+        .settings-toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #333; border-radius: 26px; transition: 0.25s; }
+        .settings-toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #888; border-radius: 50%; transition: 0.25s; }
+        .settings-toggle input:checked + .settings-toggle-slider { background: var(--main-green); }
+        .settings-toggle input:checked + .settings-toggle-slider:before { transform: translateX(22px); background: #000; }
+
+        .wage-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 600; align-items: center; justify-content: center; }
+        .wage-overlay.open { display: flex; }
+        .wage-popup { background: #1a1a1a; border: 1px solid var(--main-green); border-radius: 16px; padding: 24px; width: 85%; max-width: 340px; text-align: center; }
+        .wage-title { font-size: 1rem; font-weight: 900; color: #fff; margin-bottom: 4px; }
+        .wage-sub { font-size: 0.75rem; color: #888; margin-bottom: 16px; }
+        .wage-input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 14px; border-radius: 8px; font-size: 1.2rem; text-align: center; margin-bottom: 12px; }
+        .wage-input::placeholder { color: #555; }
+        .wage-result { font-size: 0.85rem; color: #ccc; margin-bottom: 16px; min-height: 2em; }
+        .wage-result b { color: var(--main-green); font-size: 1.3rem; }
+        .wage-actions { display: flex; gap: 8px; }
+        .wage-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer; }
+        .wage-btn-save { background: var(--main-green); color: #000; }
+        .wage-btn-rest { background: #333; color: #aaa; }
+        .wage-btn-close { background: #1a1a1a; border: 1px solid #444; color: #666; }
+
+        .place-list-area { margin-top: 10px; padding-bottom: 80px; max-height: calc(100vh - 150px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .place-item { display: flex; justify-content: space-between; align-items: center; background: #181818; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; border-left: 5px solid var(--main-green); font-size: 0.85rem; }
+        .gps-btn { background: #222; border: 1px solid #444; font-size: 1rem; cursor: pointer; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 8px; }
+        .gps-btn.saved { background: rgba(0,255,65,0.15); border-color: var(--main-green); }
+        .edit-btn { background: #333; border: 1px solid #555; color: #ccc; font-size: 0.6rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-weight: bold; margin-left: 8px; }
+
+        .splash { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 9999; transition: opacity 0.6s ease; }
+        .splash.fade-out { opacity: 0; pointer-events: none; transition: opacity 1.2s ease; }
+        .splash-hud { font-size: 4rem; font-weight: 900; color: var(--main-green); letter-spacing: 10px; animation: splashGlow 1.2s ease-in-out; }
+        .splash-sub { font-size: 0.75rem; color: #fff; letter-spacing: 4px; margin-top: 12px; animation: splashFadeIn 1s ease 0.4s both; }
+        @keyframes splashGlow { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+        @keyframes splashFadeIn { from{opacity:0} to{opacity:1} }
+
+        .pin-screen { display: none; position: fixed; inset: 0; background: #000; z-index: 8000; flex-direction: column; align-items: center; justify-content: center; }
+        .pin-screen.open { display: flex; }
+        .pin-logo { font-size: 2rem; font-weight: 900; color: #fff; letter-spacing: 6px; margin-bottom: 8px; }
+        .pin-subtitle { font-size: 0.7rem; color: #555; margin-bottom: 30px; letter-spacing: 2px; }
+        .pin-dots { display: flex; gap: 14px; margin-bottom: 30px; }
+        .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #444; background: transparent; transition: all 0.15s; }
+        .pin-dot.filled { background: var(--main-green); border-color: var(--main-green); box-shadow: 0 0 6px rgba(0,255,65,0.5); }
+        .pin-dot.error { background: var(--accent-red); border-color: var(--accent-red); box-shadow: 0 0 6px rgba(255,62,62,0.5); }
+        .pin-pad { display: grid; grid-template-columns: repeat(3,70px); gap: 12px; }
+        .pin-key { width: 70px; height: 54px; border-radius: 10px; border: 1px solid #333; background: #111; color: #fff; font-size: 1.4rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.1s; }
+        .pin-key:active { background: var(--main-green); color: #000; }
+        .pin-key.fn { font-size: 0.75rem; color: #888; }
+        .pin-msg { font-size: 0.7rem; color: var(--accent-red); margin-top: 16px; min-height: 1.2em; }
+
+        .consent-screen { display: none; position: fixed; inset: 0; background: #000; z-index: 8500; flex-direction: column; align-items: center; overflow-y: auto; }
+        .consent-screen.open { display: flex; }
+        .consent-inner { width: 90%; max-width: 380px; padding: 40px 0 30px; }
+        .consent-logo { font-size: 1.6rem; font-weight: 900; color: var(--main-green); letter-spacing: 5px; text-align: center; margin-bottom: 6px; }
+        .consent-sub { font-size: 0.7rem; color: #fff; text-align: center; letter-spacing: 2px; margin-bottom: 24px; }
+        .consent-section { background: #111; border: 1px solid #222; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .consent-section-title { font-size: 0.8rem; font-weight: bold; color: var(--main-green); margin-bottom: 8px; }
+        .consent-section-body { font-size: 0.7rem; color: #aaa; line-height: 1.6; }
+        .consent-checks { display: flex; flex-direction: column; gap: 12px; margin: 20px 0; }
+        .consent-check { display: flex; align-items: center; gap: 10px; }
+        .consent-check input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--main-green); flex-shrink: 0; }
+        .consent-check label { font-size: 0.75rem; color: #ccc; }
+        .consent-btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .consent-btn.active { background: var(--main-green); color: #000; }
+        .consent-btn.inactive { background: #333; color: #666; pointer-events: none; }
+
+        .locate-feedback { position: fixed; top: 40%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,255,65,0.15); border: 1px solid var(--main-green); border-radius: 16px; padding: 20px 30px; text-align: center; z-index: 700; animation: locatePop 0.3s ease; }
+        @keyframes locatePop { from{opacity:0;transform:translate(-50%,-50%) scale(0.8)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
+
+        /* ===== 커스텀 모달 시스템 ===== */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-overlay.open { display: flex; }
+        .modal-box { background: #1a1a1a; border: 1px solid #333; border-radius: 16px; padding: 22px; width: 100%; max-width: 340px; max-height: 80vh; overflow-y: auto; }
+        .modal-box.confirm { border-color: var(--main-green); }
+        .modal-box.warn { border-color: var(--accent-red); }
+        .modal-box.info { border-color: var(--save-orange); }
+        .modal-icon { font-size: 1.8rem; text-align: center; margin-bottom: 8px; }
+        .modal-title { font-size: 1rem; font-weight: 900; color: #fff; text-align: center; margin-bottom: 10px; }
+        .modal-body { font-size: 0.82rem; color: #ccc; line-height: 1.6; margin-bottom: 18px; white-space: pre-wrap; word-break: keep-all; text-align: center; }
+        .modal-actions { display: flex; gap: 8px; }
+        .modal-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.85rem; cursor: pointer; }
+        .modal-btn-primary { background: var(--main-green); color: #000; }
+        .modal-btn-danger { background: var(--accent-red); color: #fff; }
+        .modal-btn-cancel { background: #333; color: #aaa; }
+        .modal-btn-warn { background: var(--save-orange); color: #000; }
+
+        /* 알림 권한 사전 설명 */
+        .notif-rationale-icon { font-size: 2.4rem; margin-bottom: 12px; }
+        .notif-rationale-list { text-align: left; margin: 12px 0; padding-left: 8px; }
+        .notif-rationale-list li { list-style: none; padding-left: 16px; position: relative; margin-bottom: 6px; font-size: 0.78rem; color: #aaa; }
+        .notif-rationale-list li::before { content: '•'; position: absolute; left: 0; color: var(--main-green); }
+
+        /* ===== 긴급연락처 페이지 ===== */
+        .emergency-page { display: none; position: fixed; inset: 0; background: #000; z-index: 500; flex-direction: column; overflow-y: auto; }
+        .emergency-page.open { display: flex; }
+        .emergency-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid #222; position: sticky; top: 0; background: #000; z-index: 10; }
+        .emergency-back { background: none; border: none; color: var(--main-green); font-size: 0.9rem; font-weight: bold; cursor: pointer; }
+        .emergency-title { font-size: 1rem; font-weight: 900; color: #fff; letter-spacing: 1px; }
+        .emergency-list { padding: 14px; display: flex; flex-direction: column; gap: 16px; padding-bottom: 80px; }
+
+        .emg-category { display: flex; flex-direction: column; gap: 8px; }
+        .emg-cat-label { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: #888; font-weight: 700; letter-spacing: 1px; padding: 0 4px; }
+        .emg-cat-label .emg-cat-icon { font-size: 0.95rem; }
+
+        .emg-item { display: flex; align-items: center; gap: 10px; background: #121212; border: 1px solid #222; border-radius: 12px; padding: 12px 14px; border-left: 4px solid; }
+        .emg-item.public { border-left-color: var(--accent-red); }
+        .emg-item.platform { border-left-color: var(--save-orange); }
+        .emg-item.insurance { border-left-color: var(--main-green); }
+        .emg-item.org { border-left-color: var(--kakao-yellow); }
+        .emg-item.other { border-left-color: #888; }
+
+        .emg-name { flex: 1; min-width: 0; }
+        .emg-name-label { font-size: 0.85rem; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .emg-name-num { font-size: 0.75rem; color: #888; font-family: monospace; margin-top: 2px; }
+        .emg-call { background: var(--main-green); color: #000; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 900; font-size: 0.8rem; cursor: pointer; flex-shrink: 0; }
+        .emg-edit { background: #333; border: 1px solid #555; color: #ccc; font-size: 0.6rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; font-weight: bold; flex-shrink: 0; }
+
+        .emg-add-btn { background: rgba(0,255,65,0.06); border: 1px dashed rgba(0,255,65,0.4); color: var(--main-green); border-radius: 12px; padding: 14px; font-size: 0.85rem; font-weight: bold; cursor: pointer; text-align: center; }
+
+        .emg-empty { text-align: center; color: #555; padding: 16px 8px; font-size: 0.75rem; font-style: italic; }
+
+        /* SOS 버튼 (페이지 상단) */
+        .emg-sos-banner { background: linear-gradient(135deg, #2a0a0a 0%, #0a0a0a 100%); border: 1px solid var(--accent-red); border-radius: 14px; padding: 16px; text-align: center; margin: 14px; box-shadow: 0 0 20px rgba(255,62,62,0.15); }
+        .emg-sos-title { font-size: 0.7rem; color: var(--accent-red); font-weight: 900; letter-spacing: 2px; margin-bottom: 6px; }
+        .emg-sos-btn { width: 100%; background: var(--accent-red); color: #fff; border: none; padding: 18px; border-radius: 10px; font-size: 1.05rem; font-weight: 900; cursor: pointer; letter-spacing: 1px; touch-action: manipulation; user-select: none; }
+        .emg-sos-btn:active { background: #cc2020; }
+        .emg-sos-hint { font-size: 0.65rem; color: #888; margin-top: 8px; }
+        .emg-sos-progress { height: 4px; background: #1a1a1a; border-radius: 2px; margin-top: 10px; overflow: hidden; display: none; }
+        .emg-sos-progress.active { display: block; }
+        .emg-sos-progress-fill { height: 100%; background: var(--accent-red); width: 0%; transition: width 0.1s linear; }
+
+        /* 연락처 추가/편집 모달 */
+        .emg-form-input { width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 12px; border-radius: 8px; font-size: 0.88rem; margin-bottom: 10px; }
+        .emg-form-input:focus { outline: none; border-color: var(--main-green); }
+        .emg-form-label { font-size: 0.7rem; color: #888; font-weight: 600; margin-bottom: 4px; padding-left: 2px; }
+        .emg-cat-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+        .emg-cat-pick-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 10px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 700; cursor: pointer; }
+        .emg-cat-pick-btn.selected { background: rgba(0,255,65,0.1); border-color: var(--main-green); color: var(--main-green); }
+    </style>
+</head>
+<body>
+
+<div id="splash" class="splash">
+    <div class="splash-hud">HUD</div>
+    <div class="splash-sub">for Riders</div>
+</div>
+
+<!-- 동의 화면 -->
+<div id="consentScreen" class="consent-screen">
+    <div class="consent-inner">
+        <div class="consent-logo">HUD</div>
+        <div class="consent-sub">for Riders</div>
+        <div class="consent-section">
+            <div class="consent-section-title">📍 위치정보 수집 · 이용 안내</div>
+            <div class="consent-section-body">
+                이 앱은 정밀 위치(GPS) 정보를 사용하여 저장된 장소와의 거리를 계산하고, 근접 시 메모를 음성으로 안내합니다.<br><br>
+                <b style="color:#fff;">• 수집 항목:</b> 위도, 경도 (GPS 정밀 위치)<br>
+                <b style="color:#fff;">• 이용 목적:</b> 장소 정렬, 근접 알림, GPS 핀 저장, 날씨 조회, 주소 자동완성<br>
+                <b style="color:#fff;">• 수집 시점:</b> 앱 포그라운드 실행 중에만 (백그라운드 수집 없음)<br>
+                <b style="color:#fff;">• 저장 방식:</b> 기기 내 암호화 저장<br>
+                <b style="color:#fff;">• 외부 전송:</b> Open-Meteo(날씨), 카카오 지도(주소)에 좌표 전송<br>
+                &nbsp;&nbsp;&nbsp;(외부 서비스는 좌표를 수집·저장하지 않음)<br>
+                <b style="color:#fff;">• 보유 기간:</b> 앱 사용 중 보유, 데이터 삭제 또는 앱 삭제 시 즉시 파기<br>
+                <b style="color:#fff;">• 동의 거부 시:</b> 위치 기반 기능 이용 불가
+            </div>
+        </div>
+        <div class="consent-section">
+            <div class="consent-section-title">📋 이용약관 요약</div>
+            <div class="consent-section-body">
+                • 이 앱은 현장 업무에서의 GPS 위치 메모 도구입니다<br>
+                • 타인의 개인정보를 무단으로 수집·저장하는 용도로 사용할 수 없습니다<br>
+                • 메모 내용의 관리 책임은 사용자 본인에게 있습니다<br>
+                • 모든 데이터는 기기 내에만 저장되며 개발자는 접근할 수 없습니다<br>
+                • 운전 중 앱 조작은 도로교통법 위반이며 금지됩니다<br>
+                • 문의: <a href="mailto:smart.tool.kr@gmail.com" style="color:var(--main-green);">smart.tool.kr@gmail.com</a><br><br>
+                <a style="color:var(--main-green);text-decoration:underline;cursor:pointer;font-size:0.7rem;" onclick="window.open('terms.html')">이용약관 전문 보기</a>&nbsp;&nbsp;
+                <a style="color:var(--main-green);text-decoration:underline;cursor:pointer;font-size:0.7rem;" onclick="window.open('privacy.html')">개인정보 처리방침 보기</a>
+            </div>
+        </div>
+        <div class="consent-checks">
+            <div class="consent-check">
+                <input type="checkbox" id="chkLocation" onchange="checkConsent()">
+                <label for="chkLocation">위치정보 수집 · 이용에 동의합니다 (필수)</label>
+            </div>
+            <div class="consent-check">
+                <input type="checkbox" id="chkPrivacy" onchange="checkConsent()">
+                <label for="chkPrivacy">개인정보 처리방침에 동의합니다 (필수)</label>
+            </div>
+            <div class="consent-check">
+                <input type="checkbox" id="chkTerms" onchange="checkConsent()">
+                <label for="chkTerms">이용약관에 동의합니다 (필수)</label>
+            </div>
+        </div>
+        <button id="consentBtn" class="consent-btn inactive" onclick="acceptConsent()">동의하고 시작하기</button>
+    </div>
+</div>
+
+<!-- PIN 잠금 화면 -->
+<div id="pinScreen" class="pin-screen">
+    <div class="pin-logo">HUD</div>
+    <div class="pin-subtitle" id="pinSubtitle">PIN 입력</div>
+    <div class="pin-dots">
+        <div class="pin-dot" id="dot0"></div>
+        <div class="pin-dot" id="dot1"></div>
+        <div class="pin-dot" id="dot2"></div>
+        <div class="pin-dot" id="dot3"></div>
+        <div class="pin-dot" id="dot4"></div>
+        <div class="pin-dot" id="dot5"></div>
+    </div>
+    <div class="pin-pad">
+        <div class="pin-key" onclick="pinInput(1)">1</div>
+        <div class="pin-key" onclick="pinInput(2)">2</div>
+        <div class="pin-key" onclick="pinInput(3)">3</div>
+        <div class="pin-key" onclick="pinInput(4)">4</div>
+        <div class="pin-key" onclick="pinInput(5)">5</div>
+        <div class="pin-key" onclick="pinInput(6)">6</div>
+        <div class="pin-key" onclick="pinInput(7)">7</div>
+        <div class="pin-key" onclick="pinInput(8)">8</div>
+        <div class="pin-key" onclick="pinInput(9)">9</div>
+        <div class="pin-key fn" onclick="pinReset()">PIN 초기화</div>
+        <div class="pin-key" onclick="pinInput(0)">0</div>
+        <div class="pin-key fn" onclick="pinDelete()">⌫</div>
+    </div>
+    <div class="pin-msg" id="pinMsg"></div>
+</div>
+
+<div class="container">
+    <div class="header-panel">
+        <div class="hud-logo">HUD</div>
+        <div class="app-subtitle">
+            <span class="sub-riders">for Riders</span>
+            <span class="sub-version">v1.0</span>
+        </div>
+        <div class="date-weather-row">
+            <span id="dateDisplay"></span>
+            <span id="dateSep" class="date-sep" style="display:none;">|</span>
+            <span id="weatherDisplay"></span>
+        </div>
+    </div>
+
+    <div class="timer-card">
+        <div class="timer-info">
+            <div id="workTimer" class="timer-display">00:00:00</div>
+            <div id="statusLabel" class="timer-status status-total">TOTAL WORK TIME</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+            <button id="missionBtn" class="btn-mission" onclick="toggleMission()">미션 모드</button>
+            <button id="toggleBtn" class="btn-toggle btn-start" onclick="handleWorkToggle()">START</button>
+        </div>
+    </div>
+
+    <div id="heroCard" class="hero-card" onclick="toggleHeroMode()">
+        <!-- v1.0.4: 배지와 시간 분리 (시간 강조) -->
+        <div id="pickupIndicator" class="pickup-area">
+            <span class="pickup-indicator" onclick="event.stopPropagation(); cancelPickup();" title="탭하여 픽업 1건 취소">🛍️ 픽업 중</span>
+            <span class="pickup-time" id="pickupTimeText">00:00</span>
+        </div>
+        <div id="heroPlaceName" class="hero-place-name">--</div>
+        <div id="heroMemo" class="hero-memo">--</div>
+        <div id="heroDist" class="hero-dist"></div>
+        <div id="heroTtsStatus" class="hero-tts-status"></div>
+    </div>
+
+    <div class="delivery-panel">
+        <div class="floor-grid">
+            <div class="floor-btn" id="f1" onclick="handleFloorToggle('f1')">1F</div>
+            <div class="floor-btn" id="b1" onclick="handleFloorToggle('b1')">B1</div>
+            <div class="floor-btn" id="b2" onclick="handleFloorToggle('b2')">B2</div>
+            <div class="floor-btn" id="b3" onclick="handleFloorToggle('b3')">B3</div>
+        </div>
+        <div class="counter-area">
+            <button id="btnPickup" class="btn-pickup" onclick="togglePickup()">PICK UP</button>
+            <div style="text-align:center;">
+                <div id="deliveryCount" class="count-num" onclick="toggleCountMode()">0</div>
+                <div id="countLabel" class="count-label">Total Count</div>
+                <div class="count-mini-btns">
+                    <button class="btn-math-mini" onclick="adjustCount(-1)" aria-label="건수 1 감소">−</button>
+                    <button class="btn-math-mini" onclick="adjustCount(1,true)" aria-label="건수 1 증가">+</button>
+                </div>
+            </div>
+            <button id="btnDrop" class="btn-drop" onclick="handleDrop()">DROP</button>
+        </div>
+    </div>
+
+    <div class="input-panel">
+        <button class="btn-locate" onclick="locateAndSave()">📍 현위치 저장</button>
+        <input type="text" id="placeName" class="place-input" placeholder="장소명, 매장명, 기타 지명 입력">
+        <div class="input-wrap">
+            <input type="text" id="placeMemo" class="place-input" placeholder=""
+                onfocus="document.getElementById('scrollPh').classList.add('hidden')"
+                onblur="if(!this.value)document.getElementById('scrollPh').classList.remove('hidden')">
+            <div class="scroll-placeholder" id="scrollPh">
+                <span>민감한 개인정보의 저장은 삼가해 주세요.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;민감한 개인정보의 저장은 삼가해 주세요.</span>
+            </div>
+        </div>
+        <button class="btn-save" onclick="saveData()">저장</button>
+        <div class="action-btns">
+            <button class="keymap-btn" onclick="openKakaoMap()">지도</button>
+            <button class="emergency-btn" onclick="openEmergency()">긴급</button>
+            <button class="history-btn" onclick="openStats()">통계</button>
+            <button class="settings-btn" onclick="openSettings()">설정</button>
+        </div>
+        <div class="copyright">HUD for Riders v1.0 · © 2026 Smart Tool Korea</div>
+    </div>
+
+    <div class="place-list-area" id="placeList"></div>
+</div>
+
+<!-- 통계 페이지 (v1.0: 기존 '내역' → '통계' 승격) -->
+<div id="historyPage" class="history-page">
+    <div class="history-header">
+        <button class="history-back" onclick="closeStats()">← 돌아가기</button>
+        <div class="history-title">📊 통계</div>
+        <div style="width:70px;"></div>
+    </div>
+
+    <!-- 요약 카드 (선택 기간 총수입/평균시급) -->
+    <div class="stats-summary">
+        <div class="stats-summary-label" id="statsSummaryLabel">이번주 수입</div>
+        <div class="stats-summary-value" id="statsSummaryValue">0원</div>
+        <div class="stats-summary-sub" id="statsSummarySub">평균시급 0원</div>
+    </div>
+
+    <!-- 기간 탭 -->
+    <div class="stats-tabs">
+        <button class="stats-tab" data-range="today" onclick="setStatsRange('today')">오늘</button>
+        <button class="stats-tab active" data-range="week" onclick="setStatsRange('week')">이번주</button>
+        <button class="stats-tab" data-range="month" onclick="setStatsRange('month')">이번달</button>
+        <button class="stats-tab" data-range="all" onclick="setStatsRange('all')">전체</button>
+    </div>
+
+    <!-- 지표 카드 (2x2) -->
+    <div class="stats-cards">
+        <div class="stats-card">
+            <div class="stats-card-label">📦 총 건수</div>
+            <div class="stats-card-value" id="statsCardDeliveries">0건</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-card-label">⏱ 총 근무</div>
+            <div class="stats-card-value" id="statsCardHours">0시간</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-card-label">💰 건당 단가</div>
+            <div class="stats-card-value" id="statsCardAvgIncome">0원</div>
+        </div>
+        <div class="stats-card">
+            <div class="stats-card-label">📅 기록 일수</div>
+            <div class="stats-card-value" id="statsCardDays">0일</div>
+        </div>
+    </div>
+
+    <!-- 최근 7일 그래프 (D: 수입/건수/시급 3축 전환) -->
+    <div class="stats-graph-box">
+        <div class="stats-graph-header">
+            <div class="stats-graph-title">📈 최근 7일</div>
+            <div class="stats-graph-switch">
+                <button class="stats-graph-btn active" data-metric="income" onclick="setGraphMetric('income')">수입</button>
+                <button class="stats-graph-btn" data-metric="deliveries" onclick="setGraphMetric('deliveries')">건수</button>
+                <button class="stats-graph-btn" data-metric="wage" onclick="setGraphMetric('wage')">시급</button>
+            </div>
+        </div>
+        <div class="stats-bars" id="statsBars"></div>
+    </div>
+
+    <!-- 일별 기록 리스트 (기존 내역 유지, 선택 기간 필터링) -->
+    <div id="historyList" class="history-list"></div>
+</div>
+
+<!-- 설정 페이지 (v1.0 신규) -->
+<div id="settingsPage" class="settings-page">
+    <div class="settings-header">
+        <button class="settings-back" onclick="closeSettings()">← 돌아가기</button>
+        <div class="settings-title">⚙️ 설정</div>
+        <div style="width:70px;"></div>
+    </div>
+
+    <!-- 🔊 음성 -->
+    <div class="settings-section">
+        <div class="settings-section-title">🔊 음성</div>
+
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div class="settings-row-label">말하기 속도</div>
+                    <div class="settings-row-desc">메모의 숫자 안내 속도</div>
+                </div>
+            </div>
+            <div class="settings-preset-grid">
+                <button class="settings-preset-btn" data-rate="0.7" onclick="setTtsRate(0.7)">느리게</button>
+                <button class="settings-preset-btn" data-rate="0.85" onclick="setTtsRate(0.85)">보통</button>
+                <button class="settings-preset-btn" data-rate="0.95" onclick="setTtsRate(0.95)">빠르게</button>
+                <button class="settings-preset-btn" data-rate="1.15" onclick="setTtsRate(1.15)">매우빠르게</button>
+            </div>
+        </div>
+
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="settings-row-label">음성 볼륨 <span id="volumeValue" style="color:var(--main-green);margin-left:8px;">100%</span></div>
+            </div>
+            <input type="range" min="0" max="100" value="100" class="settings-slider" id="volumeSlider" oninput="setTtsVolume(this.value)">
+        </div>
+
+        <div class="settings-row">
+            <div>
+                <div class="settings-row-label">🔊 음성 테스트</div>
+                <div class="settings-row-desc">"안녕하세요. 오늘도 안전한 운행 부탁드려요."</div>
+            </div>
+            <button class="settings-preset-btn" style="width:80px;" onclick="testTts()">재생</button>
+        </div>
+
+        <div class="settings-row">
+            <div>
+                <div class="settings-row-label">🌿 안전 운행 멘트</div>
+                <div class="settings-row-desc">시작·종료·1시간마다 격려와 안전 팁</div>
+            </div>
+            <label class="settings-toggle">
+                <input type="checkbox" id="safetyMsgToggle" checked onchange="toggleSafetyMsg(this.checked)">
+                <span class="settings-toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 📍 근접 알림 -->
+    <div class="settings-section">
+        <div class="settings-section-title">📍 근접 알림</div>
+
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+            <div>
+                <div class="settings-row-label">안내 거리</div>
+                <div class="settings-row-desc">이 거리 이내로 들어오면 음성 안내</div>
+            </div>
+            <div class="settings-preset-grid">
+                <button class="settings-preset-btn" data-dist="0.02" onclick="setProxDist(0.02)">20m</button>
+                <button class="settings-preset-btn" data-dist="0.03" onclick="setProxDist(0.03)">30m</button>
+                <button class="settings-preset-btn" data-dist="0.05" onclick="setProxDist(0.05)">50m</button>
+                <button class="settings-preset-btn" data-dist="0.10" onclick="setProxDist(0.10)">100m</button>
+            </div>
+        </div>
+
+        <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+            <div>
+                <div class="settings-row-label">속도 제한</div>
+                <div class="settings-row-desc">이 속도 이하에서만 음성 안내 (고속주행 중 스팸 방지)</div>
+            </div>
+            <div class="settings-preset-grid settings-preset-grid-5">
+                <button class="settings-preset-btn" data-speed="20" onclick="setProxSpeed(20)">20</button>
+                <button class="settings-preset-btn" data-speed="30" onclick="setProxSpeed(30)">30</button>
+                <button class="settings-preset-btn" data-speed="40" onclick="setProxSpeed(40)">40</button>
+                <button class="settings-preset-btn" data-speed="50" onclick="setProxSpeed(50)">50</button>
+                <button class="settings-preset-btn" data-speed="999" onclick="setProxSpeed(999)">무제한</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🔒 보안 -->
+    <div class="settings-section">
+        <div class="settings-section-title">🔒 보안 · 데이터</div>
+        <button class="settings-action-btn" onclick="exportBackup()">
+            <span>💾 백업 파일 내보내기</span>
+            <span style="color:#888;font-size:0.7rem;">→</span>
+        </button>
+        <button class="settings-action-btn" onclick="document.getElementById('restoreFile').click()">
+            <span>📥 백업 파일 복원</span>
+            <span style="color:#888;font-size:0.7rem;">→</span>
+        </button>
+        <input type="file" id="restoreFile" accept=".json,.enc" style="display:none" onchange="importBackup(event)">
+        <!-- v1.0.4: 근무시간/건수 초기화 -->
+        <button class="settings-action-btn" onclick="resetWorkData()" style="color:#ff9800;">
+            <span>⏱ 근무 시간 · 건수 초기화</span>
+            <span style="color:#888;font-size:0.7rem;">→</span>
+        </button>
+    </div>
+
+    <!-- ℹ️ 정보 -->
+    <div class="settings-section">
+        <div class="settings-section-title">ℹ️ 정보</div>
+        <div class="settings-info-row"><span>앱 버전</span><span style="color:#fff;">v1.0</span></div>
+        <div class="settings-info-row"><span>개발자</span><span style="color:#fff;">Smart Tool Korea</span></div>
+        <div class="settings-info-row"><span>이용약관</span><a href="terms.html" target="_blank">보기 →</a></div>
+        <div class="settings-info-row"><span>개인정보 처리방침</span><a href="privacy.html" target="_blank">보기 →</a></div>
+        <div class="settings-info-row"><span>사용 매뉴얼</span><a href="manual.html" target="_blank">보기 →</a></div>
+        <div class="settings-info-row"><span>피드백·문의</span><a href="mailto:smart.tool.kr@gmail.com">이메일 →</a></div>
+    </div>
+
+    <div style="height:30px;"></div>
+</div>
+
+<!-- 긴급연락처 페이지 -->
+<div id="emergencyPage" class="emergency-page">
+    <div class="emergency-header">
+        <button class="emergency-back" onclick="closeEmergency()">← 돌아가기</button>
+        <div class="emergency-title">🚨 긴급연락처</div>
+        <div style="width:70px;"></div>
+    </div>
+
+    <!-- SOS 배너 -->
+    <div class="emg-sos-banner">
+        <div class="emg-sos-title">⚠️ SOS — 119 다이얼 열기</div>
+        <button id="emgSosBtn" class="emg-sos-btn">길게 눌러 119 다이얼 열기</button>
+        <div class="emg-sos-progress" id="emgSosProgress"><div class="emg-sos-progress-fill" id="emgSosProgressFill"></div></div>
+        <div class="emg-sos-hint">2초간 누르면 GPS 좌표가 복사되고 119 다이얼 화면이 열립니다. 통화 버튼을 직접 눌러 신고하세요.</div>
+    </div>
+
+    <div class="emergency-list" id="emergencyList"></div>
+</div>
+<div id="wageOverlay" class="wage-overlay">
+    <div class="wage-popup">
+        <div class="wage-title">수고하셨습니다 💪</div>
+        <div class="wage-sub">오늘의 시급을 계산해 볼까요?</div>
+        <input type="number" id="wageInput" class="wage-input" placeholder="총 수입 (원)" oninput="calcWage()">
+        <div id="wageResult" class="wage-result"></div>
+        <div class="wage-actions">
+            <button class="wage-btn wage-btn-rest" onclick="closeWagePopup(false)">휴식</button>
+            <button class="wage-btn wage-btn-save" onclick="closeWagePopup(true)">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- 커스텀 모달 (alert/confirm 대체) -->
+<div id="customModal" class="modal-overlay">
+    <div id="customModalBox" class="modal-box">
+        <div id="customModalIcon" class="modal-icon"></div>
+        <div id="customModalTitle" class="modal-title"></div>
+        <div id="customModalBody" class="modal-body"></div>
+        <div id="customModalActions" class="modal-actions"></div>
+    </div>
+</div>
+
+<!-- 알림 권한 사전 설명 모달 -->
+<div id="notifRationaleModal" class="modal-overlay">
+    <div class="modal-box info">
+        <div class="notif-rationale-icon" style="text-align:center;">🔔</div>
+        <div class="modal-title">알림 권한이 필요합니다</div>
+        <div class="modal-body" style="text-align:left;">
+            앱이 다음 알림을 보내기 위해 권한이 필요합니다:
+            <ul class="notif-rationale-list">
+                <li>근무 시간 경과 알림 (1시간 단위)</li>
+                <li>저장된 장소 근접 음성 안내</li>
+            </ul>
+            <div style="font-size:0.72rem;color:#888;margin-top:8px;">
+                알림은 선택 사항입니다. 거부해도 앱의 핵심 기능은 정상 작동합니다.
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn modal-btn-cancel" onclick="declineNotifPermission()">나중에</button>
+            <button class="modal-btn modal-btn-primary" onclick="acceptNotifPermission()">알림 허용</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ===== XSS 방어 =====
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    function escapeAttr(str) { return escapeHtml(str).replace(/\\/g,'\\\\'); }
+
+    // TTS용 이모지 제거
+    function stripEmoji(str) {
+        return str.replace(/[\u{1F000}-\u{1FFFF}]|[\u{2600}-\u{27FF}]|[\u{2300}-\u{23FF}]/gu, '').replace(/\s+/g,' ').trim();
+    }
+
+    // ===== 커스텀 모달 시스템 (alert/confirm 대체) =====
+    function showAlert(opts) {
+        return new Promise(resolve => {
+            const overlay = document.getElementById('customModal');
+            const box = document.getElementById('customModalBox');
+            const icon = document.getElementById('customModalIcon');
+            const title = document.getElementById('customModalTitle');
+            const body = document.getElementById('customModalBody');
+            const actions = document.getElementById('customModalActions');
+
+            box.className = 'modal-box ' + (opts.type || 'info');
+            icon.innerText = opts.icon || (opts.type === 'warn' ? '⚠️' : opts.type === 'confirm' ? '❓' : 'ℹ️');
+            title.innerText = opts.title || '알림';
+            body.innerText = opts.message || '';
+
+            actions.innerHTML = '';
+            const close = (result) => {
+                overlay.classList.remove('open');
+                resolve(result);
+            };
+
+            if (opts.type === 'confirm' || opts.type === 'warn') {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'modal-btn modal-btn-cancel';
+                cancelBtn.innerText = opts.cancelText || '취소';
+                cancelBtn.onclick = () => close(false);
+                actions.appendChild(cancelBtn);
+
+                const okBtn = document.createElement('button');
+                okBtn.className = 'modal-btn ' + (opts.type === 'warn' ? 'modal-btn-danger' : 'modal-btn-primary');
+                okBtn.innerText = opts.okText || '확인';
+                okBtn.onclick = () => close(true);
+                actions.appendChild(okBtn);
+            } else {
+                const okBtn = document.createElement('button');
+                okBtn.className = 'modal-btn modal-btn-primary';
+                okBtn.innerText = opts.okText || '확인';
+                okBtn.onclick = () => close(true);
+                actions.appendChild(okBtn);
+            }
+
+            overlay.classList.add('open');
+        });
+    }
+
+    // ===== localStorage 키 마이그레이션 (구 키 → gpn_ 통일) =====
+    const KEY_MIGRATION_MAP = {
+        // 무 prefix → gpn_
+        'totalWorkMs': 'gpn_totalWorkMs',
+        'deliveryCount': 'gpn_deliveryCount',
+        'deliveryTimestamps': 'gpn_deliveryTimestamps',
+        'lastResetDate': 'gpn_lastResetDate',
+        'workStartTime': 'gpn_workStartTime',
+        // hud_ → gpn_
+        'hud_pin_hash': 'gpn_pin_hash',
+        'hud_pin_salt': 'gpn_pin_salt',
+        'hud_enc_salt': 'gpn_enc_salt',
+        'hud_consent': 'gpn_consent',
+        'hud_consent_date': 'gpn_consent_date',
+        'hud_storage_version': 'gpn_storage_version',
+        'hud_lastBackupDate': 'gpn_lastBackupDate',
+        'hud_pin': 'gpn_pin_legacy',
+        // rm_ → gpn_
+        'rm_workLogs': 'gpn_workLogs',
+        // 구 localStorage 키 'apts'/'apts_enc' → 'gpn_apts'/'gpn_apts_enc' (구버전 호환 마이그레이션 전용)
+        'apts': 'gpn_apts',
+        'apts_enc': 'gpn_apts_enc'
+    };
+    function migrateLocalStorageKeys() {
+        if (localStorage.getItem('gpn_keys_migrated') === '1') return;
+        Object.entries(KEY_MIGRATION_MAP).forEach(([oldKey, newKey]) => {
+            const oldVal = localStorage.getItem(oldKey);
+            if (oldVal !== null && localStorage.getItem(newKey) === null) {
+                localStorage.setItem(newKey, oldVal);
+                localStorage.removeItem(oldKey);
+            }
+        });
+        // PIN 강제 재설정 플래그 (구 4자리 PIN → 6자리)
+        if (localStorage.getItem('gpn_pin_hash') && !localStorage.getItem('gpn_pin_v2')) {
+            localStorage.removeItem('gpn_pin_hash');
+            localStorage.removeItem('gpn_pin_salt');
+            localStorage.setItem('gpn_pin_force_reset', '1');
+        }
+        localStorage.setItem('gpn_keys_migrated', '1');
+    }
+    // 페이지 로드 즉시 마이그레이션 실행 (다른 모든 코드보다 먼저)
+    migrateLocalStorageKeys();
+
+    // ===== PIN 보안 =====
+    let pinCode = [], pinMode = 'unlock', pinSetupFirst = '', appPin = null;
+    let autoLockTimer = null, bgHideTime = 0;
+    const AUTO_LOCK_MS = 15 * 60 * 1000; // 15분 (백그라운드 전환 후 기준)
+    const PIN_LENGTH = 6;
+    const PIN_MAX_ATTEMPTS = 5;
+    const PIN_LOCKOUT_MS = 30 * 1000; // 30초
+
+    function getPinSalt() {
+        let salt = localStorage.getItem('gpn_pin_salt');
+        if (!salt) { salt = CryptoJS.lib.WordArray.random(128/8).toString(); localStorage.setItem('gpn_pin_salt', salt); }
+        return salt;
+    }
+    function hashPin(pin) {
+        return CryptoJS.PBKDF2(pin, getPinSalt(), { keySize: 256/32, iterations: 5000 }).toString();
+    }
+
+    // PIN 잠금 상태 관리
+    function getPinLockoutRemaining() {
+        const lockUntil = parseInt(localStorage.getItem('gpn_pin_lockout_until') || '0');
+        if (lockUntil <= 0) return 0;
+        const remaining = lockUntil - Date.now();
+        return remaining > 0 ? remaining : 0;
+    }
+    function getPinAttempts() {
+        return parseInt(localStorage.getItem('gpn_pin_attempts') || '0');
+    }
+    function recordPinFailure() {
+        const attempts = getPinAttempts() + 1;
+        localStorage.setItem('gpn_pin_attempts', attempts.toString());
+        if (attempts >= PIN_MAX_ATTEMPTS) {
+            localStorage.setItem('gpn_pin_lockout_until', (Date.now() + PIN_LOCKOUT_MS).toString());
+            localStorage.setItem('gpn_pin_attempts', '0');
+            return PIN_LOCKOUT_MS;
+        }
+        return 0;
+    }
+    function clearPinFailures() {
+        localStorage.removeItem('gpn_pin_attempts');
+        localStorage.removeItem('gpn_pin_lockout_until');
+    }
+
+    function hasPinSet() { return !!localStorage.getItem('gpn_pin_hash'); }
+    function verifyPin(entered) { return hashPin(entered) === localStorage.getItem('gpn_pin_hash'); }
+
+    // ===== PBKDF2 암호화 =====
+    function getOrCreateSalt() {
+        let salt = localStorage.getItem('gpn_enc_salt');
+        if (!salt) { salt = CryptoJS.lib.WordArray.random(128/8).toString(); localStorage.setItem('gpn_enc_salt', salt); }
+        return salt;
+    }
+    function deriveKey(pin) {
+        return CryptoJS.PBKDF2(pin, getOrCreateSalt(), { keySize: 256/32, iterations: 10000 }).toString();
+    }
+    function encrypt(data, key) {
+        return CryptoJS.AES.encrypt(JSON.stringify(data), deriveKey(key)).toString();
+    }
+    function decryptWithDerived(ct, key) {
+        try { return JSON.parse(CryptoJS.AES.decrypt(ct, deriveKey(key)).toString(CryptoJS.enc.Utf8)); } catch { return null; }
+    }
+    function decryptLegacy(ct, key) {
+        try { return JSON.parse(CryptoJS.AES.decrypt(ct, key).toString(CryptoJS.enc.Utf8)); } catch { return null; }
+    }
+    function decrypt(ct, key) {
+        return decryptWithDerived(ct, key) || decryptLegacy(ct, key);
+    }
+
+    // ===== 데이터 마이그레이션 =====
+    const STORAGE_VERSION = 'gpn_v1';
+    function migrateData() {
+        const plainPlaces = localStorage.getItem('gpn_apts');
+        if (plainPlaces && appPin) {
+            try { savePlacesEncrypted(JSON.parse(plainPlaces), appPin); localStorage.removeItem('gpn_apts'); } catch {}
+        }
+        const currentVer = localStorage.getItem('gpn_storage_version');
+        if (currentVer !== STORAGE_VERSION) {
+            const raw = localStorage.getItem('gpn_apts_enc');
+            if (raw && appPin) {
+                // 구버전(raw키) 또는 신버전(PBKDF2) 모두 시도
+                const data = decryptLegacy(raw, appPin) || decryptWithDerived(raw, appPin);
+                if (data) savePlacesEncrypted(data, appPin);
+            }
+        }
+        localStorage.setItem('gpn_storage_version', STORAGE_VERSION);
+    }
+
+    function loadPlaces(pin) {
+        const raw = localStorage.getItem('gpn_apts_enc');
+        let data = raw ? (decryptWithDerived(raw, pin) || decryptLegacy(raw, pin)) : null;
+        if (!data) {
+            const plain = localStorage.getItem('gpn_apts');
+            if (plain) { try { data = JSON.parse(plain); localStorage.removeItem('gpn_apts'); } catch {} }
+        }
+        if (!data) return [];
+        return data.map(a => {
+            if (!a.pins) { a.pins = a.lat ? [{ lat: a.lat, lon: a.lon }] : []; delete a.lat; delete a.lon; }
+            if (a.memo === undefined) a.memo = '';
+            return a;
+        });
+    }
+    function savePlacesEncrypted(data, pin) { safeSet('gpn_apts_enc', encrypt(data, pin || appPin)); }
+
+    // ===== PIN 입력 =====
+    function pinInput(num) {
+        if (getPinLockoutRemaining() > 0) return;
+        if (pinCode.length >= PIN_LENGTH) return;
+        pinCode.push(num); updatePinDots();
+        if (pinCode.length === PIN_LENGTH) setTimeout(() => handlePinComplete(), 200);
+    }
+    function pinDelete() { pinCode.pop(); updatePinDots(); }
+    function updatePinDots() {
+        for (let i = 0; i < PIN_LENGTH; i++)
+            document.getElementById('dot'+i).className = 'pin-dot' + (i < pinCode.length ? ' filled' : '');
+    }
+    function showPinError(msg) {
+        document.getElementById('pinMsg').innerText = msg;
+        for (let i = 0; i < PIN_LENGTH; i++) document.getElementById('dot'+i).className = 'pin-dot error';
+        setTimeout(() => { pinCode = []; updatePinDots(); document.getElementById('pinMsg').innerText = ''; }, 1500);
+    }
+    function showPinLockout(remainingMs) {
+        const sec = Math.ceil(remainingMs / 1000);
+        showPinError(sec + '초 후 다시 시도하세요');
+        const interval = setInterval(() => {
+            const rem = getPinLockoutRemaining();
+            if (rem <= 0) { clearInterval(interval); document.getElementById('pinMsg').innerText = ''; }
+            else document.getElementById('pinMsg').innerText = Math.ceil(rem/1000) + '초 후 다시 시도하세요';
+        }, 500);
+    }
+    function handlePinComplete() {
+        const entered = pinCode.join('');
+        if (pinMode === 'setup') {
+            pinSetupFirst = entered; pinMode = 'confirm'; pinCode = []; updatePinDots();
+            document.getElementById('pinSubtitle').innerText = 'PIN 확인 (다시 입력)'; return;
+        }
+        if (pinMode === 'confirm') {
+            if (entered === pinSetupFirst) {
+                appPin = entered;
+                localStorage.setItem('gpn_pin_hash', hashPin(appPin));
+                localStorage.setItem('gpn_pin_v2', '1'); // 6자리 PIN 마커
+                localStorage.removeItem('gpn_pin_force_reset');
+                clearPinFailures();
+                savePlacesEncrypted(places, appPin);
+                unlockApp();
+            } else {
+                showPinError('PIN이 일치하지 않습니다');
+                pinMode = 'setup'; pinSetupFirst = '';
+                document.getElementById('pinSubtitle').innerText = '새 PIN 설정 (6자리)';
+            }
+            return;
+        }
+        if (pinMode === 'unlock') {
+            const lockoutRem = getPinLockoutRemaining();
+            if (lockoutRem > 0) { showPinLockout(lockoutRem); return; }
+            if (verifyPin(entered)) {
+                clearPinFailures();
+                appPin = entered; places = loadPlaces(appPin); unlockApp();
+            } else {
+                const newLockout = recordPinFailure();
+                if (newLockout > 0) showPinLockout(newLockout);
+                else {
+                    const remaining = PIN_MAX_ATTEMPTS - getPinAttempts();
+                    showPinError('PIN이 틀렸습니다 (남은 시도: ' + remaining + '회)');
+                }
+            }
+        }
+    }
+    async function pinReset() {
+        const ok = await showAlert({
+            type: 'warn', icon: '⚠️', title: 'PIN 초기화',
+            message: 'PIN을 초기화하면 저장된 장소 데이터가 모두 삭제됩니다.\n계속하시겠습니까?',
+            okText: '초기화', cancelText: '취소'
+        });
+        if (!ok) return;
+        const deleteWork = await showAlert({
+            type: 'confirm', icon: '🗑️', title: '근무 기록 삭제',
+            message: '근무 기록도 함께 삭제할까요?',
+            okText: '함께 삭제', cancelText: '근무기록 유지'
+        });
+        localStorage.removeItem('gpn_pin_hash'); localStorage.removeItem('gpn_pin_v2');
+        localStorage.removeItem('gpn_apts_enc'); localStorage.removeItem('gpn_apts');
+        localStorage.removeItem('gpn_emg_enc');
+        localStorage.removeItem('gpn_enc_salt'); localStorage.removeItem('gpn_pin_salt');
+        clearPinFailures();
+        if (deleteWork) {
+            ['gpn_workLogs','gpn_totalWorkMs','gpn_deliveryCount','gpn_deliveryTimestamps','gpn_lastResetDate'].forEach(k => localStorage.removeItem(k));
+            totalWorkMs = 0; deliveryCount = 0; deliveryTimestamps = [];
+            document.getElementById('deliveryCount').innerText = '0';
+            updateTimerDisplay(0);
+        }
+        appPin = null; places = []; emergencyContacts = []; pinMode = 'setup'; pinCode = []; updatePinDots();
+        document.getElementById('pinSubtitle').innerText = '새 PIN 설정 (6자리)';
+        document.getElementById('pinMsg').innerText = '';
+    }
+
+    function unlockApp() {
+        document.getElementById('pinScreen').classList.remove('open');
+        migrateData();
+        loadEmergencyContacts();
+        init();
+    }
+    function lockApp() {
+        pinCode = []; updatePinDots(); pinMode = 'unlock';
+        document.getElementById('pinSubtitle').innerText = 'PIN 입력';
+        document.getElementById('pinMsg').innerText = '';
+        document.getElementById('pinScreen').classList.add('open');
+    }
+
+    // ===== 자동잠금: 백그라운드 전환 시에만 타이머 시작 =====
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            // 백그라운드 진입 - 근무 중이면 잠금 안 함
+            if (!localStorage.getItem('gpn_workStartTime')) {
+                bgHideTime = Date.now();
+                autoLockTimer = setTimeout(lockApp, AUTO_LOCK_MS);
+            }
+        } else {
+            // 포그라운드 복귀 - 타이머 취소 (이미 lockApp 실행됐을 수 있음)
+            clearTimeout(autoLockTimer);
+            bgHideTime = 0;
+            // 잠금 화면이 아니면 UI 갱신
+            if (!document.getElementById('pinScreen').classList.contains('open')) {
+                refreshTimerView();
+                startGPSWatch();
+                fetchWeather();
+                updateDateDisplay();
+            }
+        }
+    });
+
+    // 동의 화면
+    function checkConsent() {
+        const ok = document.getElementById('chkLocation').checked
+                 && document.getElementById('chkPrivacy').checked
+                 && document.getElementById('chkTerms').checked;
+        document.getElementById('consentBtn').className = ok ? 'consent-btn active' : 'consent-btn inactive';
+    }
+    function acceptConsent() {
+        if (!document.getElementById('chkLocation').checked
+            || !document.getElementById('chkPrivacy').checked
+            || !document.getElementById('chkTerms').checked) return;
+        localStorage.setItem('gpn_consent', 'agreed');
+        localStorage.setItem('gpn_consent_date', new Date().toISOString());
+        localStorage.setItem('gpn_consent_version', '1.0');
+        document.getElementById('consentScreen').classList.remove('open');
+        showPinScreen();
+    }
+    function showPinScreen() {
+        // PIN 강제 재설정 안내 (4자리 → 6자리 마이그레이션)
+        if (localStorage.getItem('gpn_pin_force_reset') === '1') {
+            showAlert({
+                type: 'info', icon: '🔐', title: '보안 업데이트',
+                message: '보안 강화를 위해 PIN이 6자리로 변경되었습니다.\n새 PIN을 설정해주세요.\n\n장소 데이터는 유지됩니다.'
+            });
+        }
+        if (!hasPinSet()) { pinMode = 'setup'; document.getElementById('pinSubtitle').innerText = '새 PIN 설정 (6자리)'; }
+        else { pinMode = 'unlock'; document.getElementById('pinSubtitle').innerText = 'PIN 입력 (6자리)'; }
+        document.getElementById('pinScreen').classList.add('open');
+    }
+
+    window.onload = function() {
+        setTimeout(() => {
+            const sp = document.getElementById('splash');
+            sp.classList.add('fade-out');
+            setTimeout(() => {
+                sp.remove();
+                if (!localStorage.getItem('gpn_consent')) {
+                    document.getElementById('consentScreen').classList.add('open');
+                } else { showPinScreen(); }
+            }, 1200);
+        }, 3000);
+    };
+
+    // ===== 앱 메인 =====
+    let isWorking = false, currentSessionStartTime = 0;
+    let totalWorkMs = 0, deliveryCount = 0;
+    let timerInterval = null, places = [], showHourly = false;
+    let userLat = null, userLon = null, activeFloor = null;
+
+    function safeParse(key, def) {
+        try { const r = localStorage.getItem(key); return r !== null ? (JSON.parse(r) || def) : def; } catch { return def; }
+    }
+    function safeSet(key, value) {
+        try { localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value)); return true; }
+        catch(e) { if (e.name === 'QuotaExceededError' || e.code === 22) showStorageWarning(); return false; }
+    }
+    function showStorageWarning() {
+        if (document.getElementById('storageWarning')) return;
+        const el = document.createElement('div');
+        el.id = 'storageWarning';
+        el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;padding:10px;background:rgba(243,156,18,0.95);color:#000;font-size:0.75rem;font-weight:bold;text-align:center;z-index:900;';
+        el.innerHTML = '⚠️ 저장 공간 부족 — 내역에서 백업 후 정리하세요 <button onclick="this.parentElement.remove()" style="margin-left:8px;padding:2px 8px;border:1px solid #000;border-radius:4px;background:none;font-weight:bold;cursor:pointer;">닫기</button>';
+        document.body.appendChild(el);
+    }
+
+    let deliveryTimestamps = safeParse('gpn_deliveryTimestamps', []);
+    let missionMode = false, missionStartTime = 0, missionInterval = null;
+
+    // TTS 상태
+    let lastTtsPlace = null, ttsCount = 0, ttsFirstTime = 0, ttsLeftZone = true;
+    const TTS_LEAVE_DIST = 0.1;  // v1.0.4: 0.3 → 0.1 (100m, 같은 빌딩 다른 동도 다시 안내받도록)
+    let watchId = null, heroForceSafety = false;
+
+    // ===== 사용자 설정 시스템 (v1.0 신규) =====
+    const SETTINGS_DEFAULTS = {
+        ttsRate: 0.95,        // 느리게0.7 / 보통0.85 / 빠르게0.95 / 매우빠르게1.15
+        ttsVolume: 1.0,       // 0.0 ~ 1.0
+        proxDist: 0.03,       // 20/30/50/100m → 0.02/0.03/0.05/0.10 km
+        proxSpeed: 50,        // v1.0.4: 30 → 50km/h (라이더 도심 운행 속도 반영)
+        safetyMsg: true       // v4.6: 안전 운행 멘트 (시작/시간별/종료)
+    };
+    let userSettings = { ...SETTINGS_DEFAULTS };
+    function loadSettings() {
+        try {
+            const saved = localStorage.getItem('gpn_settings');
+            if (saved) userSettings = { ...SETTINGS_DEFAULTS, ...JSON.parse(saved) };
+        } catch (e) { console.warn('settings load failed:', e); }
+    }
+    function saveSettings() {
+        try { localStorage.setItem('gpn_settings', JSON.stringify(userSettings)); }
+        catch (e) { console.warn('settings save failed:', e); }
+    }
+    loadSettings();
+
+    // GPS 속도
+    let gpsMode = 'normal', lastUpdateTime = 0, UPDATE_INTERVAL = 5000;
+    let prevGpsLat = null, prevGpsLon = null, prevGpsTime = 0, currentSpeedKmh = null;
+
+    // AudioContext (lazy)
+    let audioCtx = null;
+    async function initAudio() {
+        if (!audioCtx) {
+            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
+        }
+        if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch {} }
+    }
+    function playBeep() {
+        // v4.6: 기본 탭 피드백 사운드 (미니 +/- 버튼 등 범용)
+        // 부드러운 sine wave 단일음, 짧은 길이
+        playTone({ freq: 880, duration: 0.08, type: 'sine', gain: 0.08 });
+    }
+
+    // v4.6: Web Audio API 기반 음악적 사운드 유틸
+    // 파형/주파수/엔벨로프로 기분 좋은 소리 합성
+    function playTone(opts) {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        try {
+            const { freq = 880, duration = 0.15, type = 'sine', gain = 0.1, startDelay = 0 } = opts;
+            const t = audioCtx.currentTime + startDelay;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, t);
+            // 부드러운 엔벨로프: attack 20ms, decay to near-zero
+            g.gain.setValueAtTime(0.001, t);
+            g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(t); osc.stop(t + duration + 0.02);
+        } catch {}
+    }
+
+    // v4.6: PICK UP — 상승하는 "팅♪" (장3도 상승, 시작의 느낌)
+    function playPickupSound() {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        playTone({ freq: 523.25, duration: 0.10, type: 'sine', gain: 0.12, startDelay: 0 });     // C5 (도)
+        playTone({ freq: 659.25, duration: 0.15, type: 'sine', gain: 0.12, startDelay: 0.08 });  // E5 (미)
+    }
+
+    // v4.6: DROP — 완성의 "딩동♪" (장2도 상승, 완료의 느낌)
+    function playDropSound() {
+        if (!audioCtx || audioCtx.state !== 'running') return;
+        playTone({ freq: 659.25, duration: 0.12, type: 'sine', gain: 0.13, startDelay: 0 });     // E5 (미)
+        playTone({ freq: 783.99, duration: 0.22, type: 'sine', gain: 0.13, startDelay: 0.10 });  // G5 (솔)
+    }
+
+    function triggerHaptic(kind) {
+        // kind: 'pickup' | 'drop' | undefined (기본)
+        if (navigator.vibrate) navigator.vibrate(100);
+        if (kind === 'pickup') playPickupSound();
+        else if (kind === 'drop') playDropSound();
+        else playBeep();
+    }
+
+    // ===== 날짜 =====
+    let _lastDisplayedDate = '';
+    function updateDateDisplay() {
+        const now = new Date();
+        const days = ['일','월','화','수','목','금','토'];
+        const dateStr = now.getFullYear() + '.' + (now.getMonth()+1) + '.' + now.getDate() + ' (' + days[now.getDay()] + ')';
+        document.getElementById('dateDisplay').innerText = dateStr;
+        // [구조 정비 1단계 v4.3] 자정 넘었을 때의 4AM 자동 리셋 호출 제거됨.
+        _lastDisplayedDate = dateStr;
+    }
+
+    // ===== 날씨 =====
+    const WMO_ICONS = {
+        0:"☀️",1:"🌤️",2:"⛅",3:"☁️",45:"🌫️",48:"🌫️",
+        51:"🌦️",53:"🌧️",55:"🌧️",56:"🌧️",57:"🌧️",
+        61:"🌧️",63:"🌧️",65:"🌧️",66:"🌧️",67:"🌧️",
+        71:"🌨️",73:"🌨️",75:"❄️",77:"❄️",
+        80:"🌦️",81:"🌧️",82:"🌧️",85:"🌨️",86:"❄️",
+        95:"⛈️",96:"⛈️",99:"⛈️"
+    };
+    const WMO_TEXT = {
+        0:"맑음",1:"대체로 맑음",2:"구름 조금",3:"흐림",45:"안개",48:"안개",
+        51:"이슬비",53:"이슬비",55:"이슬비",56:"빙점 이슬비",57:"빙점 이슬비",
+        61:"약한 비",63:"비",65:"강한 비",66:"빙점 비",67:"빙점 비",
+        71:"약한 눈",73:"눈",75:"강한 눈",77:"눈알갱이",
+        80:"소나기",81:"소나기",82:"강한 소나기",85:"약한 눈소나기",86:"강한 눈소나기",
+        95:"뇌우",96:"우박 뇌우",99:"강한 우박 뇌우"
+    };
+    let weatherInterval = null;
+    const RAIN_SNOW_CODES = [51,53,55,56,57,61,63,65,66,67,71,73,75,77,80,81,82,85,86,95,96,99];
+
+    function fetchWeather() {
+        function doFetch(lat, lon) {
+            fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+'&current=temperature_2m,weather_code&timezone=Asia%2FSeoul')
+            .then(r => r.json()).then(data => {
+                if (data.current) {
+                    const code = data.current.weather_code !== undefined ? data.current.weather_code : data.current.weathercode;
+                    const temp = Math.round(data.current.temperature_2m);
+                    const el = document.getElementById('weatherDisplay');
+                    el.innerText = (WMO_ICONS[code]||'🌡️') + ' ' + temp + '° ' + (WMO_TEXT[code]||'');
+                    document.getElementById('dateSep').style.display = 'inline';
+                    // [구조 정비 2단계 v4.4] checkWeatherNotif(code) 호출 제거됨.
+                    adjustWeatherInterval(code);
+                }
+            }).catch(() => {
+                document.getElementById('weatherDisplay').innerText = '날씨 정보 없음';
+                document.getElementById('dateSep').style.display = 'inline';
+            });
+        }
+        if (userLat && userLon) doFetch(userLat, userLon);
+        else doFetch(37.5665, 126.978);
+    }
+    function adjustWeatherInterval(code) {
+        clearInterval(weatherInterval);
+        const interval = RAIN_SNOW_CODES.includes(code) ? 10*60*1000 : [2,3,45,48].includes(code) ? 15*60*1000 : 30*60*1000;
+        weatherInterval = setInterval(fetchWeather, interval);
+    }
+
+    // ===== 앱 진입 시 데이터 로드 =====
+    // [구조 정비 1단계 v4.3] 새벽 4시 자동 리셋 로직 제거됨.
+    // 기존 checkDailyReset() 함수에서 시각 기반 자동 초기화 부분은 제거하고,
+    // localStorage에서 저장값을 로드하는 부분과 7일 필터링 부분만 유지한다.
+    // 7일 필터링의 주간 경계 정의는 4단계(기능 수정)에서 별도 설계 예정.
+    function loadStoredWorkData() {
+        totalWorkMs = parseInt(localStorage.getItem('gpn_totalWorkMs')) || 0;
+        deliveryCount = parseInt(localStorage.getItem('gpn_deliveryCount')) || 0;
+        deliveryTimestamps = safeParse('gpn_deliveryTimestamps', []);
+        pruneOldTimestamps();
+    }
+
+    function pruneOldTimestamps() {
+        // 원본 동작 그대로: 지금으로부터 7일 이전 타임스탬프 제거.
+        // 주간 경계(수요일 시작/화요일 종료) 적용은 4단계에서.
+        const weekAgo = Date.now() - 7*86400000;
+        const before = deliveryTimestamps.length;
+        deliveryTimestamps = deliveryTimestamps.filter(ts => ts > weekAgo);
+        if (deliveryTimestamps.length !== before) safeSet('gpn_deliveryTimestamps', deliveryTimestamps);
+    }
+
+    function restoreWorkState() {
+        const savedStart = localStorage.getItem('gpn_workStartTime');
+        if (savedStart) {
+            isWorking = true; currentSessionStartTime = parseInt(savedStart);
+            const btn = document.getElementById('toggleBtn');
+            btn.innerText = 'STOP'; btn.classList.replace('btn-start','btn-stop');
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => refreshTimerView(), 1000);
+            refreshTimerView();
+        }
+    }
+
+    function init() {
+        loadStoredWorkData();
+        document.getElementById('deliveryCount').innerText = deliveryCount;
+        updateTimerDisplay(totalWorkMs);
+        restoreWorkState();
+        restorePickupState();   // v4.6: 픽업 상태 복원 (24시간 초과 시 자동 초기화)
+        updateDateDisplay();
+        // 매분 날짜 갱신 체크
+        setInterval(updateDateDisplay, 60000);
+        startGPSWatch();
+        setTimeout(fetchWeather, 1500);
+        weatherInterval = setInterval(fetchWeather, 15*60*1000);
+        startNotifCheckers();
+    }
+
+    // ===== 알림 시스템 =====
+    let heroNotifTimer = null;
+    let lastWorkHourNotif = 0, lastRestNotif = 0, lastCountMilestone = 0;
+    let lastMissionMinNotif = 0;
+    // [구조 정비 1·2단계 v4.3~v4.4] 제거된 변수:
+    //   lastWeatherCode (날씨 변화 감지), gpsStartTime (GPS 4시간 타이머),
+    //   gpsNotifSent (GPS 알림 1회성 플래그)
+
+    function requestNotifPermission() {
+        if (!('Notification' in window)) return;
+        if (Notification.permission !== 'default') return;
+        // 이미 사전 설명을 거부한 경우 다시 묻지 않음
+        if (localStorage.getItem('gpn_notif_rationale_declined') === '1') return;
+        // 사전 설명 모달 표시
+        document.getElementById('notifRationaleModal').classList.add('open');
+    }
+    function acceptNotifPermission() {
+        document.getElementById('notifRationaleModal').classList.remove('open');
+        localStorage.removeItem('gpn_notif_rationale_declined');
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+    }
+    function declineNotifPermission() {
+        document.getElementById('notifRationaleModal').classList.remove('open');
+        localStorage.setItem('gpn_notif_rationale_declined', '1');
+    }
+
+    function sendHudNotif(message) {
+        try {
+            if ('Notification' in window && Notification.permission === 'granted')
+                new Notification('HUD for Riders', { body: stripEmoji(message), icon: 'icon-192.png', silent: true });
+        } catch {}
+        if (navigator.vibrate) navigator.vibrate([200,100,200]);
+        // v4.7: safety 조건 제거 — 히어로 카드 상태와 무관하게 항상 음성 발화
+        speakNotif(stripEmoji(message));
+        showHeroNotif(message);
+    }
+
+    // v4.7: TTS 발화 헬퍼 (워밍업 제거)
+    // 기존 워밍업 패턴(volume=0 + onend chain)이 일부 환경에서 onend 미발생으로
+    // 메인 발화가 영원히 일어나지 않는 버그가 있어 직접 발화 방식으로 전환.
+    // - paused 상태 자동 resume (백그라운드 복귀 대비)
+    // v1.0.4 변경: 안전 멘트는 코어(장소 안내)를 끊지 않도록 cancel 제거.
+    //              사용자 제스처 컨텍스트 유지를 위해 setTimeout 제거.
+    //              짤림 방지를 위해 공백 prefix 추가.
+    function speakDirect(text, opts) {
+        if (!('speechSynthesis' in window) || !text) return;
+
+        try {
+            if (speechSynthesis.paused) speechSynthesis.resume();
+        } catch {}
+
+        try {
+            const u = new SpeechSynthesisUtterance(' ' + text);  // v1.0.4: 짤림 방지 공백 prefix
+            u.lang = 'ko-KR';
+            u.rate = (opts && opts.rate !== undefined) ? opts.rate
+                   : (userSettings.ttsRate || 0.95);
+            u.volume = (opts && opts.volume !== undefined) ? opts.volume
+                     : (userSettings.ttsVolume !== undefined ? userSettings.ttsVolume : 1.0);
+            speechSynthesis.speak(u);
+        } catch (e) { console.warn('TTS speak failed:', e); }
+    }
+
+    function speakNotif(message) {
+        speakDirect(message);
+    }
+
+    function showHeroNotif(message) {
+        const hero = document.getElementById('heroCard');
+        if (!hero.classList.contains('safety')) return;
+        if (heroNotifTimer) clearTimeout(heroNotifTimer);
+        document.getElementById('heroPlaceName').innerHTML = '';
+        const heroMemo = document.getElementById('heroMemo');
+        const safeMsg = escapeHtml(stripEmoji(message));
+        heroMemo.innerHTML = '<div class="hero-scroll-wrap"><span style="font-size:1.3rem;color:var(--save-orange);">' + safeMsg + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + safeMsg + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>';
+        heroMemo.style.fontSize=''; heroMemo.style.letterSpacing='0'; heroMemo.style.color=''; heroMemo.style.textShadow='none';
+        document.getElementById('heroDist').innerText = '';
+        heroNotifTimer = setTimeout(() => { updateHeroCardSafety(); }, 5000);
+    }
+
+    function startNotifCheckers() {
+        setInterval(checkAllNotifs, 30000);
+        // [구조 정비 2단계 v4.4] gpsStartTime 초기화 제거됨.
+    }
+    function checkAllNotifs() {
+        // [구조 정비 1·2단계 v4.3~v4.4] 아래 자동 트리거들은 모두 제거됨:
+        //   - checkDailyReset() : 새벽 4시 자동 리셋
+        //   - checkResetSaveNotif() : 새벽 3:30 사전 알림
+        //   - checkGpsBatteryNotif() : GPS 4시간 연속 배터리 알림
+        //   - checkBackupReminder() : 7일 미완료 백업 알림
+        //   - checkWeatherNotifPoll() : 날씨 변화 자동 알림
+        // 남은 알림들은 근무 세션(isWorking) 기반 이벤트 알림뿐이다.
+        checkWorkHourNotif();
+        checkRestNotif();
+        checkMissionNotif();
+    }
+
+    // ===== v4.6: 안전 운행 멘트 풀 =====
+    // 라이더의 장시간 근무 중 집중력 저하 방지 및 정서적 지원.
+    // 동료 톤으로 친근하게. 명령조 배제.
+    const SAFETY_MESSAGES = {
+        start: [
+            '안녕하세요. 오늘도 안전한 운행 부탁드려요.',
+            '좋은 하루 시작해요. 안전 먼저입니다.',
+            '오늘도 화이팅이에요. 안전하게 출발하세요.'
+        ],
+        hour1: [
+            '한 시간 고생하셨어요. 좋은 페이스예요.',
+            '한 시간 달렸네요. 오늘도 화이팅이에요.',
+            '한 시간째입니다. 안전 운전 부탁드려요.'
+        ],
+        hour2: [
+            '두 시간 고생하셨어요. 물 한 잔 드시고 가세요.',
+            '두 시간 지났네요. 어깨 스트레칭 한 번 어떠세요.',
+            '벌써 두 시간. 잠깐 숨 고르고 가시죠.'
+        ],
+        hour3: [
+            '세 시간째네요. 주변 시야 한 번 크게 살펴보세요.',
+            '세 시간 쉬지 않고 일하셨어요. 잠깐 쉬어보세요.',
+            '세 시간째입니다. 눈 깜빡이는 횟수 줄지는 않았나요.'
+        ],
+        hour4plus: [
+            '네 시간 넘었어요. 피로가 쌓이는 시간입니다. 휴식 꼭 챙기세요.',
+            '네 시간째입니다. 집중력이 떨어지는 구간이에요.',
+            '오래 고생하셨어요. 건강이 우선입니다. 쉬어가세요.'
+        ],
+        stop: [
+            '수고하셨어요. 푹 쉬시고 내일 다시 만나요.',
+            '오늘도 고생 많으셨어요. 편안한 휴식 되세요.',
+            '오늘 하루 감사했어요. 내일 또 만나요.'
+        ],
+        stopLong: [
+            '긴 시간 정말 고생 많으셨어요. 충분히 쉬세요.',
+            '오늘 정말 많이 달리셨어요. 푹 주무시고 내일 만나요.',
+            '고생하셨어요. 오늘은 푹 쉬시는 게 우선이에요.'
+        ]
+    };
+
+    function pickRandom(arr) {
+        return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function safetyMsgEnabled() {
+        // 설정값 (기본 true). 사용자가 끄면 false.
+        const s = userSettings || {};
+        return s.safetyMsg !== false;
+    }
+
+    function speakSafetyMsg(message) {
+        try {
+            if ('Notification' in window && Notification.permission === 'granted')
+                new Notification('HUD for Riders', { body: stripEmoji(message), icon: 'icon-192.png', silent: true });
+        } catch {}
+        if (navigator.vibrate) navigator.vibrate(150);
+        // v4.7: safety 조건 제거 — 안전 멘트는 히어로 카드 상태와 무관하게 항상 발화
+        speakNotif(stripEmoji(message));
+        showHeroNotif(message);
+    }
+
+    function checkWorkHourNotif() {
+        if (!isWorking || missionMode) return;
+        const workH = Math.floor(getCurrentWorkMs() / 3600000);
+        if (workH > 0 && workH > lastWorkHourNotif) {
+            lastWorkHourNotif = workH;
+            // v4.6: 시간대별 안전 멘트로 교체
+            if (!safetyMsgEnabled()) {
+                // 안전 멘트 꺼져 있을 때는 기존 간단한 안내만
+                let msg = '근무 ' + workH + '시간 경과';
+                if (deliveryCount > 0) msg += ' · 시간당 ' + (deliveryCount / workH).toFixed(1) + '건';
+                sendHudNotif(msg);
+                return;
+            }
+            let pool;
+            if (workH === 1) pool = SAFETY_MESSAGES.hour1;
+            else if (workH === 2) pool = SAFETY_MESSAGES.hour2;
+            else if (workH === 3) pool = SAFETY_MESSAGES.hour3;
+            else pool = SAFETY_MESSAGES.hour4plus;   // 4시간 이상
+            speakSafetyMsg(pickRandom(pool));
+        }
+    }
+    function checkMissionNotif() {
+        if (!missionMode) { lastMissionMinNotif = 0; return; }
+        const elapsed = Math.floor((Date.now() - missionStartTime) / 60000);
+        const milestone = Math.floor(elapsed / 30) * 30;
+        if (milestone > 0 && milestone > lastMissionMinNotif) {
+            lastMissionMinNotif = milestone;
+            sendHudNotif('미션 ' + milestone + '분 경과');
+        }
+    }
+    function checkRestNotif() {
+        if (!isWorking || missionMode) return;
+        const now = Date.now();
+        const workMs = getCurrentWorkMs();
+        if (workMs < 7260000) { lastRestNotif = now; return; }
+        if (!lastRestNotif) lastRestNotif = now;
+        if (now - lastRestNotif >= 7200000) {
+            lastRestNotif = now;
+            // v4.6: 안전 멘트 사용
+            if (safetyMsgEnabled()) {
+                speakSafetyMsg(pickRandom(SAFETY_MESSAGES.hour2));
+            } else {
+                sendHudNotif('2시간 연속 근무! 5분 휴식하세요');
+            }
+        }
+    }
+    function checkCountMilestone() {
+        if (missionMode) {
+            if (deliveryCount > 0 && deliveryCount !== lastCountMilestone) {
+                lastCountMilestone = deliveryCount;
+                sendHudNotif('미션 ' + deliveryCount + '건 완료!');
+            }
+        } else {
+            if (deliveryCount > 0 && deliveryCount % 5 === 0 && deliveryCount !== lastCountMilestone) {
+                lastCountMilestone = deliveryCount;
+                sendHudNotif(deliveryCount + '건 달성!');
+            }
+        }
+    }
+    // [구조 정비 1·2단계 v4.3~v4.4] 아래 자동 트리거 함수들은 모두 제거됨:
+    //   - checkResetSaveNotif()  : 새벽 3:30 사전 알림
+    //   - checkGpsBatteryNotif() : GPS 4시간 연속 배터리 알림
+    //   - checkWeatherNotif()    : 날씨 변화(강수) 알림
+    //   - checkWeatherNotifPoll(): 날씨 자동 폴링 트리거
+    //   - checkBackupReminder()  : 7일 미완료 백업 알림
+
+    // ===== 근무 타이머 =====
+    function handleWorkToggle() {
+        initAudio();
+        const btn = document.getElementById('toggleBtn');
+        if (!isWorking) {
+            isWorking = true; currentSessionStartTime = Date.now();
+            requestNotifPermission();
+            localStorage.setItem('gpn_workStartTime', currentSessionStartTime);
+            btn.innerText = 'STOP'; btn.classList.replace('btn-start','btn-stop');
+            lastWorkHourNotif = 0; lastRestNotif = Date.now();
+            // 미션 interval 중복 방지
+            if (missionInterval) { clearInterval(missionInterval); missionInterval = null; }
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => refreshTimerView(), 1000);
+            refreshTimerView();
+            // v4.6: 시작 멘트 (약간의 딜레이 후 발화 — TTS 엔진 워밍업 시간 확보)
+            if (safetyMsgEnabled()) {
+                setTimeout(() => {
+                    speakSafetyMsg(pickRandom(SAFETY_MESSAGES.start));
+                }, 300);
+            }
+        } else {
+            // v4.6: 픽업 중 상태에서 STOP 시도하면 확인 팝업
+            if (pickupCount > 0) {
+                const msg = '픽업 중인 배달이 ' + pickupCount + '건 있습니다.\n'
+                          + '근무를 종료하시겠습니까?\n\n'
+                          + '(종료하면 픽업 상태도 함께 초기화됩니다)';
+                if (!confirm(msg)) {
+                    return;  // 사용자가 취소하면 STOP 중단
+                }
+                // 확인 시 픽업 상태도 함께 초기화
+                resetPickupState();
+            }
+            // v4.6: 종료 멘트 (isWorking=false 전에 근무 시간 계산)
+            const sessionMs = Date.now() - currentSessionStartTime;
+            isWorking = false; clearInterval(timerInterval);
+            totalWorkMs += sessionMs;
+            localStorage.setItem('gpn_totalWorkMs', totalWorkMs);
+            // lastResetDate는 4AM 리셋 기준 - STOP 시 갱신하지 않음
+            localStorage.removeItem('gpn_workStartTime');
+            btn.innerText = 'START'; btn.classList.replace('btn-stop','btn-start');
+            if (missionMode) { missionMode = false; document.getElementById('missionBtn').classList.remove('active'); }
+            if (missionInterval) { clearInterval(missionInterval); missionInterval = null; }
+            refreshTimerView();
+            // v4.6: 종료 멘트 발화 (4시간 이상이면 긴 근무용 멘트 풀)
+            if (safetyMsgEnabled()) {
+                const pool = sessionMs >= 4 * 3600000
+                    ? SAFETY_MESSAGES.stopLong
+                    : SAFETY_MESSAGES.stop;
+                speakSafetyMsg(pickRandom(pool));
+            }
+            openWagePopup();
+        }
+    }
+
+    function updateTimerDisplay(ms) {
+        const h = String(Math.floor(ms/3600000)).padStart(2,'0');
+        const m = String(Math.floor((ms%3600000)/60000)).padStart(2,'0');
+        const s = String(Math.floor((ms%60000)/1000)).padStart(2,'0');
+        document.getElementById('workTimer').innerText = h+':'+m+':'+s;
+    }
+    function refreshTimerView() {
+        const label = document.getElementById('statusLabel');
+        if (missionMode) {
+            updateTimerDisplay(Date.now() - missionStartTime);
+            label.innerText = '⚡ MISSION'; label.className = 'timer-status'; label.style.color = 'var(--save-orange)';
+        } else {
+            updateTimerDisplay(getCurrentWorkMs());
+            if (isWorking) { label.innerText = '● LIVE WORKING'; label.className = 'timer-status status-live'; }
+            else { label.innerText = 'TOTAL WORK TIME'; label.className = 'timer-status status-total'; }
+            label.style.color = '';
+        }
+    }
+    function toggleMission() {
+        const btn = document.getElementById('missionBtn');
+        if (!missionMode) {
+            missionMode = true; missionStartTime = Date.now(); btn.classList.add('active');
+            if (!isWorking) {
+                clearInterval(missionInterval);
+                missionInterval = setInterval(() => refreshTimerView(), 1000);
+            }
+        } else {
+            missionMode = false; btn.classList.remove('active');
+            if (missionInterval) { clearInterval(missionInterval); missionInterval = null; }
+        }
+        refreshTimerView();
+    }
+    function getCurrentWorkMs() {
+        return isWorking ? totalWorkMs + (Date.now() - currentSessionStartTime) : totalWorkMs;
+    }
+
+    // ===== 층수 버튼 (워밍업) =====
+    const FLOOR_SPEAK = { 'f1':'일층', 'b1':'지하일층', 'b2':'지하이층', 'b3':'지하삼층' };
+
+    function handleFloorToggle(id) {
+        initAudio();
+        const btn = document.getElementById(id);
+        if (activeFloor === id) {
+            // [v4.6 이슈 1 수정] 층수 해제 시 자동 건수 +1 제거.
+            // 건수 증가는 DROP 버튼 또는 미니 + 버튼으로만 이루어진다.
+            btn.classList.remove('active'); activeFloor = null;
+        } else {
+            if (activeFloor) document.getElementById(activeFloor).classList.remove('active');
+            btn.classList.add('active'); activeFloor = id;
+            speakFloor(FLOOR_SPEAK[id]);
+        }
+    }
+
+    function speakFloor(text) {
+        // v4.7: 워밍업 제거 → speakDirect 사용
+        speakDirect(text);
+    }
+
+    // ===== 카운터 =====
+    function adjustCount(n, haptic=false) {
+        deliveryCount = Math.max(0, deliveryCount + n);
+        safeSet('gpn_deliveryCount', deliveryCount);
+        if (n > 0) {
+            deliveryTimestamps.push(Date.now());
+            if (deliveryTimestamps.length > 200) deliveryTimestamps = deliveryTimestamps.slice(-200);
+            safeSet('gpn_deliveryTimestamps', deliveryTimestamps);
+        } else if (n < 0 && deliveryTimestamps.length > 0) {
+            deliveryTimestamps.pop();
+            safeSet('gpn_deliveryTimestamps', deliveryTimestamps);
+            // 마일스톤 재발동 방지: 건수 줄면 lastCountMilestone도 줄임
+            if (deliveryCount < lastCountMilestone) lastCountMilestone = deliveryCount;
+        }
+        if (haptic && n > 0) triggerHaptic();
+        updateCountDisplay();
+        if (n > 0) checkCountMilestone();
+    }
+    function toggleCountMode() { showHourly = !showHourly; updateCountDisplay(); }
+    function updateCountDisplay() {
+        const el = document.getElementById('deliveryCount');
+        const label = document.getElementById('countLabel');
+        if (showHourly) {
+            const workH = getCurrentWorkMs() / 3600000;
+            if (workH > 0 && deliveryCount > 0) {
+                el.innerText = (deliveryCount / workH).toFixed(1);
+            } else {
+                el.innerText = '--';
+            }
+            el.classList.add('hourly-mode'); label.innerText = '건/h'; label.style.color = '#f39c12';
+        } else {
+            el.innerText = deliveryCount; el.classList.remove('hourly-mode');
+            label.innerText = 'Total Count'; label.style.color = '#888';
+        }
+    }
+    setInterval(() => { if (showHourly) updateCountDisplay(); }, 60000);
+
+    // ===== v4.5/v4.6: PICK UP / DROP 버튼 (카운트 + 경과 시간) =====
+    // v4.6 변경: 배지 왼쪽 상단 이동 + 경과 시간 표시 + 45분/1시간 경고 + 상태 복원
+    // 데이터 기록은 단순 건수 증가 + 이벤트 로그만 (v1.1에서 위치·시각 확장 예정)
+    const PICKUP_MAX = 9;
+    const PICKUP_WARN_MS = 45 * 60 * 1000;   // 45분 — 빨강 깜박임 시작
+    const PICKUP_VIBE_MS = 60 * 60 * 1000;   // 1시간 — 진동 1회 (사고 의심 신호)
+    const PICKUP_MAX_AGE_MS = 24 * 60 * 60 * 1000;  // 24시간 — 복원 시 자동 초기화
+    let pickupCount = 0;
+    let pickupStartTime = null;
+    let pickupTimerInterval = null;
+    let pickupVibeNotified = false;
+
+    function logPickupEvent(type) {
+        try {
+            const events = safeParse('gpn_pickupEvents', []);
+            events.push({ type: type, time: Date.now() });
+            if (events.length > 500) events.splice(0, events.length - 500);
+            safeSet('gpn_pickupEvents', events);
+        } catch(e) {}
+    }
+
+    function savePickupState() {
+        try {
+            safeSet('gpn_pickupState', { count: pickupCount, start: pickupStartTime });
+        } catch(e) {}
+    }
+
+    function restorePickupState() {
+        try {
+            const s = safeParse('gpn_pickupState', null);
+            if (!s || !s.count || s.count <= 0 || !s.start) return;
+            // 24시간 초과 시 자동 초기화
+            if (Date.now() - s.start > PICKUP_MAX_AGE_MS) {
+                safeSet('gpn_pickupState', null);
+                return;
+            }
+            pickupCount = s.count;
+            pickupStartTime = s.start;
+            // 경고 이미 지난 상태라면 vibe 플래그 설정 (중복 진동 방지)
+            if (Date.now() - pickupStartTime > PICKUP_VIBE_MS) {
+                pickupVibeNotified = true;
+            }
+            startPickupTimer();
+            updatePickupUI();
+        } catch(e) {}
+    }
+
+    function startPickupTimer() {
+        if (pickupTimerInterval) return;
+        pickupTimerInterval = setInterval(updatePickupUI, 1000);
+    }
+
+    function stopPickupTimer() {
+        if (pickupTimerInterval) {
+            clearInterval(pickupTimerInterval);
+            pickupTimerInterval = null;
+        }
+    }
+
+    function formatPickupElapsed(ms) {
+        // 자동 확장 형식: mm:ss → h:mm:ss (1시간 이상)
+        const total = Math.floor(ms / 1000);
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        const pad = (n) => n < 10 ? '0' + n : '' + n;
+        if (h > 0) return h + ':' + pad(m) + ':' + pad(s);
+        return pad(m) + ':' + pad(s);
+    }
+
+    function togglePickup() {
+        // 연속 픽업 지원: 탭할 때마다 +1 (최대 9건까지)
+        if (pickupCount >= PICKUP_MAX) {
+            triggerHaptic();
+            return;
+        }
+        if (pickupCount === 0) {
+            // 첫 픽업: 시작 시각 기록 + 경과 타이머 시작
+            pickupStartTime = Date.now();
+            pickupVibeNotified = false;
+            startPickupTimer();
+        }
+        pickupCount++;
+        savePickupState();
+        updatePickupUI();
+        logPickupEvent('pickup');
+        triggerHaptic('pickup');  // v4.6: 상승하는 "팅♪"
+    }
+
+    function handleDrop() {
+        if (pickupCount > 0) {
+            pickupCount--;
+            logPickupEvent('drop');
+            if (pickupCount === 0) {
+                // 마지막 드롭: 타이머 중지 + 시작 시각 초기화
+                pickupStartTime = null;
+                pickupVibeNotified = false;
+                stopPickupTimer();
+            }
+            savePickupState();
+        } else {
+            // 픽업 없이 DROP만 탭: 건수만 +1 (드롭 단독 사용 허용)
+            logPickupEvent('drop_only');
+        }
+        updatePickupUI();
+        // v4.6: adjustCount의 기본 haptic 대신 drop 사운드 사용
+        adjustCount(1, false);
+        triggerHaptic('drop');
+    }
+
+    function cancelPickup() {
+        if (pickupCount > 0) {
+            if (confirm('픽업 1건을 취소하시겠습니까?')) {
+                pickupCount--;
+                if (pickupCount === 0) {
+                    pickupStartTime = null;
+                    pickupVibeNotified = false;
+                    stopPickupTimer();
+                }
+                savePickupState();
+                updatePickupUI();
+                logPickupEvent('pickup_cancel');
+            }
+        }
+    }
+
+    function resetPickupState() {
+        // 외부 호출용 (세션 STOP 시 확인 후 초기화)
+        pickupCount = 0;
+        pickupStartTime = null;
+        pickupVibeNotified = false;
+        stopPickupTimer();
+        savePickupState();
+        updatePickupUI();
+        logPickupEvent('pickup_reset');
+    }
+
+    function updatePickupUI() {
+        const btn = document.getElementById('btnPickup');
+        const area = document.getElementById('pickupIndicator');  // v1.0.4: 이제 .pickup-area 컨테이너
+        const indicator = area.querySelector('.pickup-indicator');
+        const timeText = document.getElementById('pickupTimeText');
+        if (pickupCount > 0 && pickupStartTime) {
+            btn.classList.add('active');
+            area.classList.add('visible');
+            const elapsed = Date.now() - pickupStartTime;
+            const timeStr = formatPickupElapsed(elapsed);
+            const countStr = pickupCount > 1 ? ' ' + pickupCount + '건' : '';
+            // v1.0.4: 배지와 시간 분리 표시
+            indicator.innerText = '🛍️ 픽업 중' + countStr;
+            timeText.innerText = timeStr;
+            // 45분 초과 시 빨강 깜박임 + 시간 노란색
+            if (elapsed > PICKUP_WARN_MS) {
+                area.classList.add('warning');
+            } else {
+                area.classList.remove('warning');
+            }
+            // 1시간 초과 시 진동 1회 (한 번만)
+            if (elapsed > PICKUP_VIBE_MS && !pickupVibeNotified) {
+                pickupVibeNotified = true;
+                triggerHaptic();
+            }
+        } else {
+            btn.classList.remove('active');
+            area.classList.remove('visible');
+            area.classList.remove('warning');
+        }
+    }
+
+    // ===== 장소 저장 (통합: 수정 모드 + _locatePin active 플래그) =====
+    let editingOriginalName = null;
+
+    function saveData() {
+        const name = document.getElementById('placeName').value.trim();
+        const memo = document.getElementById('placeMemo').value.trim();
+        if (!name) return;
+
+        const locPin = window._locatePin; // { lat, lon, active: true }
+
+        if (editingOriginalName) {
+            // 수정 모드
+            const idx = places.findIndex(a => a.name === editingOriginalName);
+            if (idx > -1) {
+                places[idx].name = name; places[idx].memo = memo;
+                if (locPin && locPin.active) {
+                    if (!places[idx].pins) places[idx].pins = [];
+                    places[idx].pins[0] = { lat: locPin.lat, lon: locPin.lon };
+                }
+            }
+            editingOriginalName = null;
+        } else {
+            const idx = places.findIndex(a => a.name === name);
+            if (idx > -1) {
+                places[idx].memo = memo;
+                if (locPin && locPin.active) {
+                    if (!places[idx].pins) places[idx].pins = [];
+                    places[idx].pins[0] = { lat: locPin.lat, lon: locPin.lon };
+                }
+            } else {
+                const np = { name, memo, pins: [] };
+                if (locPin && locPin.active) np.pins = [{ lat: locPin.lat, lon: locPin.lon }];
+                places.push(np);
+            }
+        }
+
+        savePlacesEncrypted(places, appPin);
+        document.getElementById('placeName').value = '';
+        document.getElementById('placeMemo').value = '';
+        const scrollPh = document.getElementById('scrollPh');
+        if (scrollPh) scrollPh.classList.remove('hidden');
+        window._locatePin = null;
+        renderList();
+    }
+
+    // ===== 현위치 저장 =====
+    async function locateAndSave() {
+        if (!userLat || !userLon) {
+            await showAlert({
+                type: 'info', icon: '📡', title: 'GPS 확인 중',
+                message: 'GPS 위치를 확인 중입니다.\n잠시 후 다시 시도해주세요.'
+            });
+            return;
+        }
+        if (typeof kakao !== 'undefined' && kakao.maps && kakao.maps.services) {
+            const geocoder = new kakao.maps.services.Geocoder();
+            geocoder.coord2Address(userLon, userLat, (result, status) => {
+                let placeName = '';
+                if (status === kakao.maps.services.Status.OK && result[0]) {
+                    const addr = result[0].address;
+                    placeName = addr.region_3depth_name || addr.region_2depth_name || '';
+                    if (result[0].road_address && result[0].road_address.building_name)
+                        placeName = result[0].road_address.building_name;
+                }
+                // 역지오코딩 실패 또는 빈 이름이면 입력란을 비워서 직접 입력 유도
+                document.getElementById('placeName').value = placeName;
+                document.getElementById('placeName').placeholder = placeName ? '장소명, 매장명, 기타 지명 입력' : '장소 이름을 입력하세요';
+                document.getElementById('placeMemo').focus();
+                // active 플래그로 GPS 좌표 연결 (이름 변경과 무관)
+                window._locatePin = { lat: userLat, lon: userLon, active: true };
+                showLocateFeedback(placeName || '현재 위치');
+            });
+        } else {
+            // 카카오 SDK 없음 - 입력란 비움
+            document.getElementById('placeName').value = '';
+            document.getElementById('placeName').placeholder = '장소 이름을 입력하세요';
+            document.getElementById('placeMemo').focus();
+            window._locatePin = { lat: userLat, lon: userLon, active: true };
+            showLocateFeedback('현재 위치');
+        }
+    }
+
+    function showLocateFeedback(name) {
+        const fb = document.createElement('div');
+        fb.className = 'locate-feedback';
+        fb.innerHTML = '<div style="font-size:1.5rem;margin-bottom:8px;">📍</div><div style="font-size:0.9rem;font-weight:bold;color:var(--main-green);">' + escapeHtml(name) + '</div><div style="font-size:0.7rem;color:#888;margin-top:4px;">메모를 입력하세요</div>';
+        document.body.appendChild(fb);
+        setTimeout(() => { fb.style.transition='opacity 0.5s'; fb.style.opacity='0'; setTimeout(()=>fb.remove(),500); }, 2000);
+    }
+
+    // ===== GPS 핀 업데이트 =====
+    function updatePlaceGPS(targetName, pinIndex) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const idx = places.findIndex(a => a.name === targetName);
+            if (idx !== -1) {
+                const place = places[idx];
+                if (!place.pins) { place.pins = place.lat ? [{lat:place.lat,lon:place.lon}] : []; delete place.lat; delete place.lon; }
+                while (place.pins.length <= pinIndex) place.pins.push(null);
+                place.pins[pinIndex] = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                savePlacesEncrypted(places, appPin); renderList();
+            }
+        }, err => {
+            const msg = err.code===1 ? '위치 권한이 차단되어 있습니다.\n브라우저 설정에서 위치 허용 후 다시 시도하세요.' :
+                        err.code===3 ? 'GPS 신호가 약합니다. 잠시 후 다시 시도하세요.' : 'GPS 핀 저장에 실패했습니다.';
+            showAlert({
+                type: 'warn', icon: '📡', title: 'GPS 오류',
+                message: msg
+            });
+        }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    }
+
+    // ===== 장소 목록 렌더링 (data-name 이벤트 위임) =====
+    let lastRenderTime = 0;
+
+    function renderList() {
+        const list = document.getElementById('placeList');
+        const MAX_RENDER = 50;
+        const savedScrollY = window.scrollY;
+
+        if (userLat && userLon) {
+            places.sort((a,b) => getPlaceMinDist(a,userLat,userLon) - getPlaceMinDist(b,userLat,userLon));
+            updateHeroCard(userLat, userLon);
+            const visible = places.slice(0, MAX_RENDER);
+            let html = visible.map((a, i) => {
+                const pins = a.pins || [];
+                const dist = getPlacePinCount(a) > 0 ? getPlaceMinDist(a,userLat,userLon).toFixed(2)+'km' : '--';
+                const borderColor = i===0 ? 'var(--main-green)' : 'var(--kakao-yellow)';
+                const p0=pins[0], p1=pins[1];
+                return '<div class="place-item" style="border-left-color:'+borderColor+'">' +
+                    '<div style="display:flex;align-items:center;">' +
+                    '<button class="gps-btn'+(p0?' saved':'')+'" data-action="pin0" data-name="'+escapeAttr(a.name)+'">'+(p0?'📍¹':'📌¹')+'</button>' +
+                    '<button class="gps-btn'+(p1?' saved':'')+'" data-action="pin1" data-name="'+escapeAttr(a.name)+'">'+(p1?'📍²':'📌²')+'</button>' +
+                    '<div style="margin-left:6px;"><span style="font-size:0.65rem;color:#888;">'+dist+'</span><br><b>'+escapeHtml(a.name)+'</b></div></div>' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<span style="font-size:1rem;font-weight:bold;color:var(--save-orange)">'+escapeHtml(a.memo)+'</span>' +
+                    '<button class="edit-btn" data-action="edit" data-name="'+escapeAttr(a.name)+'">수정</button>' +
+                    '<button class="edit-btn" style="border-color:#ff3e3e;color:#ff3e3e;" data-action="delete" data-name="'+escapeAttr(a.name)+'">삭제</button>' +
+                    '</div></div>';
+            }).join('');
+            if (places.length > MAX_RENDER) html += '<div style="text-align:center;padding:12px;font-size:0.7rem;color:#555;">외 '+(places.length-MAX_RENDER)+'개 장소 (가까이 이동하면 표시)</div>';
+            list.innerHTML = html;
+        } else {
+            const visible = places.slice(0, MAX_RENDER);
+            let html = visible.map((a, i) => {
+                const pins = a.pins || [];
+                const borderColor = i===0 ? 'var(--main-green)' : 'var(--kakao-yellow)';
+                const p0=pins[0], p1=pins[1];
+                return '<div class="place-item" style="border-left-color:'+borderColor+'">' +
+                    '<div style="display:flex;align-items:center;">' +
+                    '<button class="gps-btn'+(p0?' saved':'')+'" data-action="pin0" data-name="'+escapeAttr(a.name)+'">'+(p0?'📍¹':'📌¹')+'</button>' +
+                    '<button class="gps-btn'+(p1?' saved':'')+'" data-action="pin1" data-name="'+escapeAttr(a.name)+'">'+(p1?'📍²':'📌²')+'</button>' +
+                    '<b style="margin-left:6px;">'+escapeHtml(a.name)+'</b></div>' +
+                    '<div style="display:flex;align-items:center;gap:6px;">' +
+                    '<span style="font-size:1rem;font-weight:bold;color:var(--save-orange)">'+escapeHtml(a.memo)+'</span>' +
+                    '<button class="edit-btn" data-action="edit" data-name="'+escapeAttr(a.name)+'">수정</button>' +
+                    '<button class="edit-btn" style="border-color:#ff3e3e;color:#ff3e3e;" data-action="delete" data-name="'+escapeAttr(a.name)+'">삭제</button>' +
+                    '</div></div>';
+            }).join('');
+            if (places.length > MAX_RENDER) html += '<div style="text-align:center;padding:12px;font-size:0.7rem;color:#555;">외 '+(places.length-MAX_RENDER)+'개 장소</div>';
+            list.innerHTML = html;
+            document.getElementById('heroCard').classList.remove('visible');
+            updateHeroCardSafety();
+        }
+        window.scrollTo(0, savedScrollY);
+    }
+
+    // 이벤트 위임 - 장소 목록 액션
+    document.getElementById('placeList').addEventListener('click', e => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const name = btn.dataset.name;
+        if (action === 'edit') editPlace(name);
+        else if (action === 'delete') deletePlace(name);
+        else if (action === 'pin0') updatePlaceGPS(name, 0);
+        else if (action === 'pin1') updatePlaceGPS(name, 1);
+    });
+
+    // 롱프레스 삭제 (터치) — data-name 속성 사용 (escape 우회 버그 방지)
+    let longPressTimer = null;
+    document.getElementById('placeList').addEventListener('touchstart', e => {
+        const item = e.target.closest('.place-item');
+        if (!item) return;
+        // 삭제 버튼의 data-name 속성에서 원본 이름 가져오기
+        const deleteBtn = item.querySelector('[data-action="delete"]');
+        if (!deleteBtn) return;
+        const name = deleteBtn.dataset.name;
+        if (!name) return;
+        longPressTimer = setTimeout(async () => {
+            const ok = await showAlert({
+                type: 'warn', icon: '🗑️', title: '장소 삭제',
+                message: '"' + name + '" 을(를) 삭제하시겠습니까?',
+                okText: '삭제', cancelText: '취소'
+            });
+            if (ok) {
+                places = places.filter(a => a.name !== name);
+                savePlacesEncrypted(places, appPin);
+                if (editingOriginalName === name) {
+                    editingOriginalName = null;
+                    document.getElementById('placeName').value = '';
+                    document.getElementById('placeMemo').value = '';
+                    const scrollPh = document.getElementById('scrollPh');
+                    if (scrollPh) scrollPh.classList.remove('hidden');
+                }
+                renderList();
+            }
+        }, 3000);
+    }, { passive: true });
+    document.getElementById('placeList').addEventListener('touchend', () => clearTimeout(longPressTimer));
+    document.getElementById('placeList').addEventListener('touchmove', () => clearTimeout(longPressTimer));
+
+    function editPlace(name) {
+        const place = places.find(a => a.name === name);
+        if (!place) return;
+        editingOriginalName = name;
+        document.getElementById('placeName').value = place.name;
+        document.getElementById('placeMemo').value = place.memo;
+        const scrollPh = document.getElementById('scrollPh');
+        if (scrollPh) scrollPh.classList.add('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    async function deletePlace(name) {
+        const ok = await showAlert({
+            type: 'warn', icon: '🗑️', title: '장소 삭제',
+            message: '"' + name + '" 을(를) 삭제하시겠습니까?',
+            okText: '삭제', cancelText: '취소'
+        });
+        if (!ok) return;
+        places = places.filter(a => a.name !== name);
+        savePlacesEncrypted(places, appPin);
+        // 수정 중이던 항목이 삭제되면 수정 모드 해제
+        if (editingOriginalName === name) {
+            editingOriginalName = null;
+            document.getElementById('placeName').value = '';
+            document.getElementById('placeMemo').value = '';
+            const scrollPh = document.getElementById('scrollPh');
+            if (scrollPh) scrollPh.classList.remove('hidden');
+        }
+        renderList();
+    }
+
+    function getPlaceMinDist(place, lat, lon) {
+        const pins = (place.pins||[]).filter(p=>p!==null);
+        if (pins.length===0) return 999;
+        return Math.min(...pins.map(p=>getD(lat,lon,p.lat,p.lon)));
+    }
+    function getPlacePinCount(place) {
+        if (place.pins) return place.pins.filter(p=>p!==null).length;
+        return place.lat ? 1 : 0;
+    }
+    function getClosestPlace(lat, lon) {
+        return places.filter(a=>getPlacePinCount(a)>0)
+            .sort((a,b)=>getPlaceMinDist(a,lat,lon)-getPlaceMinDist(b,lat,lon))[0];
+    }
+
+    // ===== 히어로 카드 =====
+    function toggleHeroMode() {
+        heroForceSafety = !heroForceSafety;
+        if (userLat && userLon) updateHeroCard(userLat, userLon);
+        else updateHeroCardSafety();
+    }
+    function updateHeroCard(myLat, myLon) {
+        const hero = document.getElementById('heroCard');
+        const closest = getClosestPlace(myLat, myLon);
+        const dist = closest ? getPlaceMinDist(closest, myLat, myLon) : 999;
+        if (closest && dist <= 0.03 && !heroForceSafety) {
+            hero.classList.remove('safety');
+            document.getElementById('heroPlaceName').innerHTML = escapeHtml(closest.name);
+            document.getElementById('heroPlaceName').style.color = '#fff';
+            applyMemoStyle(document.getElementById('heroMemo'), closest.memo);
+            document.getElementById('heroDist').innerText = dist.toFixed(2)+'km';
+            document.getElementById('heroTtsStatus').innerText = '';
+        } else {
+            updateHeroCardSafety();
+        }
+        hero.classList.add('visible');
+    }
+    function updateHeroCardSafety() {
+        const hero = document.getElementById('heroCard');
+        hero.classList.add('safety');
+        document.getElementById('heroPlaceName').innerHTML = '';
+        const msg = '교통법규를 준수하여 안전하게 운행 하세요.';
+        const heroMemo = document.getElementById('heroMemo');
+        heroMemo.innerHTML = '<div class="hero-scroll-wrap"><span style="font-size:1.3rem;color:#fff;">'+msg+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+msg+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>';
+        heroMemo.style.fontSize=''; heroMemo.style.letterSpacing='0'; heroMemo.style.color=''; heroMemo.style.textShadow='none';
+        document.getElementById('heroDist').innerText = '';
+        document.getElementById('heroTtsStatus').innerText = '';
+        hero.classList.add('visible');
+    }
+    function applyMemoStyle(el, text) {
+        const len = (text||'').length;
+        if (len<=6) { el.innerHTML=escapeHtml(text); el.style.fontSize='2.2rem'; el.style.letterSpacing='3px'; el.style.color='var(--main-green)'; el.style.textShadow='0 0 8px rgba(0,255,65,0.4)'; }
+        else if (len<=10) { el.innerHTML=escapeHtml(text); el.style.fontSize='1.6rem'; el.style.letterSpacing='2px'; el.style.color='var(--main-green)'; el.style.textShadow='0 0 6px rgba(0,255,65,0.3)'; }
+        else if (len<=15) { el.innerHTML=escapeHtml(text); el.style.fontSize='1.2rem'; el.style.letterSpacing='1px'; el.style.color='var(--main-green)'; el.style.textShadow='0 0 4px rgba(0,255,65,0.2)'; }
+        else { const s=escapeHtml(text); el.innerHTML='<div class="hero-scroll-wrap"><span style="font-size:1.0rem;letter-spacing:1px;color:var(--main-green);">'+s+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+s+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>'; el.style.fontSize=''; el.style.letterSpacing='0'; el.style.color=''; el.style.textShadow='none'; }
+    }
+
+    // ===== GPS Watch =====
+    let gpsErrorCount = 0;
+    let firstGpsFix = true;
+
+    function startGPSWatch() {
+        if (!navigator.geolocation) return;
+        if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+        watchId = navigator.geolocation.watchPosition(pos => {
+            gpsErrorCount = 0; hideGpsWarning();
+            const now = Date.now();
+            if (now - lastUpdateTime < UPDATE_INTERVAL) return;
+            const newLat = pos.coords.latitude, newLon = pos.coords.longitude;
+            if (userLat && userLon && getD(userLat,userLon,newLat,newLon) < 0.005) { lastUpdateTime=now; return; }
+
+            // 속도 계산
+            if (pos.coords.speed !== null && pos.coords.speed >= 0) {
+                currentSpeedKmh = pos.coords.speed * 3.6;
+            } else if (prevGpsLat !== null && prevGpsTime > 0) {
+                const distKm = getD(prevGpsLat, prevGpsLon, newLat, newLon);
+                const elapsedH = (now - prevGpsTime) / 3600000;
+                currentSpeedKmh = elapsedH > 0 ? distKm / elapsedH : null;
+                if (currentSpeedKmh !== null && currentSpeedKmh > 200) currentSpeedKmh = null;
+            }
+
+            prevGpsLat=newLat; prevGpsLon=newLon; prevGpsTime=now;
+            lastUpdateTime=now; userLat=newLat; userLon=newLon;
+            window._lastGpsAccuracy = pos.coords.accuracy;
+
+            // 첫 GPS 수신 시 날씨 재요청
+            if (firstGpsFix) { firstGpsFix=false; fetchWeather(); }
+
+            handleLocationUpdate(userLat, userLon);
+        }, err => {
+            gpsErrorCount++;
+            if (gpsErrorCount >= 3) {
+                const msg = err.code===1 ? '📡 위치 권한이 차단됨' : err.code===3 ? '📡 GPS 신호 약함 (터널/실내)' : '📡 위치 확인 불가';
+                showGpsWarning(msg);
+            }
+        }, { enableHighAccuracy: gpsMode==='tracking', maximumAge: gpsMode==='tracking'?2000:5000, timeout:10000 });
+    }
+    function showGpsWarning(msg) {
+        let el = document.getElementById('gpsWarning');
+        if (!el) { el=document.createElement('div'); el.id='gpsWarning'; el.style.cssText='position:fixed;top:0;left:0;right:0;padding:6px;background:rgba(255,62,62,0.9);color:#fff;font-size:0.7rem;font-weight:bold;text-align:center;z-index:900;'; document.body.appendChild(el); }
+        el.innerText=msg; el.style.display='block';
+    }
+    function hideGpsWarning() { const el=document.getElementById('gpsWarning'); if(el) el.style.display='none'; }
+    function restartGPSWatch() { startGPSWatch(); }
+
+    function handleLocationUpdate(lat, lon) {
+        if (places.length===0) return;
+        const closest = getClosestPlace(lat, lon);
+        if (!closest) return;
+        const dist = getPlaceMinDist(closest, lat, lon);
+        places.sort((a,b)=>getPlaceMinDist(a,lat,lon)-getPlaceMinDist(b,lat,lon));
+        updateHeroCard(lat, lon);
+        const now = Date.now();
+        if (now - lastRenderTime > 3000) { renderList(); lastRenderTime=now; }
+        const prevMode = gpsMode;
+        if (dist < 0.03) { gpsMode='tracking'; UPDATE_INTERVAL=2000; }
+        else { gpsMode='normal'; UPDATE_INTERVAL=5000; }
+        if (prevMode!==gpsMode) restartGPSWatch();
+        handleTTS(closest, dist);
+    }
+
+    function getD(l1,o1,l2,o2) {
+        const R=6371, dL=(l2-l1)*Math.PI/180, dO=(o2-o1)*Math.PI/180;
+        const a=Math.sin(dL/2)**2+Math.cos(l1*Math.PI/180)*Math.cos(l2*Math.PI/180)*Math.sin(dO/2)**2;
+        return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    }
+
+    // ===== TTS: 사용자 설정 기반 (거리 + 속도 + 1회 안내) =====
+    let ttsLastSpokenTime = 0;
+    const TTS_MIN_GAP = 5000;
+
+    function handleTTS(place, dist) {
+        // v1.0.4: GPS 정확도 100→200m 완화 (도심 빌딩 사이 정확도 저하 시에도 안내 가능)
+        if (window._lastGpsAccuracy && window._lastGpsAccuracy > 200) return;
+
+        // v1.0.4: TTS_MIN_GAP 5초 → 3초 (너무 빈번 차단 완화)
+        if (Date.now() - ttsLastSpokenTime < 3000) return;
+
+        // v1.0.4: speaking 락 체크 제거 — speakPlaceInfo가 cancel로 직접 처리
+        // 기존: speechSynthesis.speaking 비정상 락 시 영영 발화 안 되는 버그 회피
+
+        // 거리 조건 — 멀어지면 재진입 가능 상태로 표시
+        const proxDist = userSettings.proxDist || 0.03;
+        if (dist > proxDist) {
+            if (lastTtsPlace === place.name) ttsLeftZone = true;
+            return;
+        }
+
+        // 속도 조건 (기본 50km/h — 라이더 도심 운행 속도)
+        const proxSpeed = userSettings.proxSpeed || 50;
+        const speedOk = currentSpeedKmh === null || proxSpeed >= 999 || currentSpeedKmh <= proxSpeed;
+        if (!speedOk) return;
+
+        // v1.0.4: 같은 장소 첫 진입 + 100m 벗어났다 재진입은 다시 안내 (TTS_LEAVE_DIST=0.1)
+        if (lastTtsPlace === place.name && !ttsLeftZone) return;
+
+        lastTtsPlace = place.name;
+        ttsLeftZone = false;
+        ttsLastSpokenTime = Date.now();
+        speakPlaceInfo(place.name, place.memo);
+
+        const speedStr = currentSpeedKmh !== null ? Math.round(currentSpeedKmh) + 'km/h' : '';
+        document.getElementById('heroTtsStatus').innerText = '🔊 음성 안내' + (speedStr ? ' · ' + speedStr : '');
+        setTimeout(() => { document.getElementById('heroTtsStatus').innerText = ''; }, 3000);
+    }
+
+    function speakPlaceInfo(name, memo) {
+        if (!('speechSynthesis' in window)) return;
+
+        // v4.7: 워밍업(volume=0 + onend chain) 제거 — 일부 환경에서 onend 미발생으로
+        // 메인 발화가 누락되는 버그 회피. 직접 큐에 쌓는 방식.
+        // v1.0.4: 코어 우선 처리 — 진행 중인 다른 발화 즉시 끊고 장소 안내 우선
+        try {
+            if (speechSynthesis.paused) speechSynthesis.resume();
+        } catch {}
+        try { speechSynthesis.cancel(); } catch {}
+
+        const charMap = {'0':'영','1':'일','2':'이','3':'삼','4':'사','5':'오','6':'육','7':'칠','8':'팔','9':'구','#':'샵','*':'별','-':'대시','.':'점'};
+        const baseRate = userSettings.ttsRate || 0.95;
+        const numberRate = Math.min(1.5, baseRate + 0.15); // 숫자는 기본보다 살짝 빠르게
+        const vol = userSettings.ttsVolume !== undefined ? userSettings.ttsVolume : 1.0;
+
+        // v1.0.4: 80→100ms (cancel 비동기 처리 안정성)
+        setTimeout(() => {
+            try {
+                // 1. 장소명 (기본 속도, 명료하게)
+                // v1.0.4: 첫 utterance 앞에 공백 prefix — Android Chrome cancel 직후 첫 단어 짤림 방지
+                if (name && name.trim()) {
+                    const u1 = new SpeechSynthesisUtterance(' ' + name.trim());
+                    u1.lang = 'ko-KR'; u1.rate = baseRate; u1.volume = vol;
+                    speechSynthesis.speak(u1);
+                }
+                // 2. 메모 (숫자 / 문자 분리 발화)
+                if (memo) {
+                    const segments = memo.match(/[0-9]+|[^0-9]+/g) || [];
+                    segments.forEach(seg => {
+                        const u = new SpeechSynthesisUtterance();
+                        u.lang = 'ko-KR'; u.volume = vol;
+                        if (/^[0-9]+$/.test(seg)) {
+                            // 숫자: 한 글자씩 공백 구분
+                            u.text = seg.split('').map(c => charMap[c]).join(' ');
+                            u.rate = numberRate;
+                        } else {
+                            u.text = seg.trim();
+                            u.rate = baseRate;
+                        }
+                        if (u.text) speechSynthesis.speak(u);
+                    });
+                }
+            } catch (e) { console.warn('TTS speak failed:', e); }
+        }, 100);
+    }
+
+    // ===== 지도 =====
+    function openKakaoMap() {
+        const hasGPS = userLat && userLon;
+        const appUrl = hasGPS ? 'kakaomap://map?center='+userLat+','+userLon : 'kakaomap://open';
+        const webUrl = 'https://map.kakao.com'; // 좌표 오류 방지 - 메인으로 단순화
+        const fallback = setTimeout(()=>{ window.open(webUrl); }, 1000);
+        window.location.href = appUrl;
+        window.addEventListener('blur',()=>clearTimeout(fallback),{once:true});
+    }
+
+    // ===== 긴급연락처 =====
+    const EMG_DEFAULT_PUBLIC = [
+        { id: 'pub_119', name: '119 화재·구급', number: '119', category: 'public', editable: false },
+        { id: 'pub_112', name: '112 경찰', number: '112', category: 'public', editable: false },
+        { id: 'pub_1339', name: '1339 응급의료상담', number: '1339', category: 'public', editable: false }
+    ];
+    const EMG_CATEGORIES = {
+        public:    { label: '🚨 공공 긴급', cls: 'public' },
+        platform:  { label: '🛵 배달 플랫폼', cls: 'platform' },
+        insurance: { label: '🛡️ 보험·정비', cls: 'insurance' },
+        org:       { label: '🏢 소속·회사', cls: 'org' },
+        other:     { label: '📞 기타', cls: 'other' }
+    };
+    let emergencyContacts = [];
+
+    function loadEmergencyContacts() {
+        const raw = localStorage.getItem('gpn_emg_enc');
+        let data = raw && appPin ? (decryptWithDerived(raw, appPin) || decryptLegacy(raw, appPin)) : null;
+        if (!Array.isArray(data)) data = [];
+        emergencyContacts = data;
+    }
+    function saveEmergencyContacts() {
+        if (!appPin) return;
+        safeSet('gpn_emg_enc', encrypt(emergencyContacts, appPin));
+    }
+    function getAllContactsForRender() {
+        // 기본 공공번호 + 사용자 추가 항목 병합 (공공번호는 항상 맨 위)
+        return [...EMG_DEFAULT_PUBLIC, ...emergencyContacts];
+    }
+
+    function openEmergency() {
+        if (emergencyContacts === null || emergencyContacts === undefined) loadEmergencyContacts();
+        renderEmergencyList();
+        document.getElementById('emergencyPage').classList.add('open');
+    }
+    function closeEmergency() {
+        document.getElementById('emergencyPage').classList.remove('open');
+    }
+
+    function renderEmergencyList() {
+        const list = document.getElementById('emergencyList');
+        const all = getAllContactsForRender();
+        // 카테고리별 그룹화
+        const grouped = {};
+        Object.keys(EMG_CATEGORIES).forEach(k => grouped[k] = []);
+        all.forEach(c => { (grouped[c.category] || grouped.other).push(c); });
+
+        let html = '';
+        Object.entries(EMG_CATEGORIES).forEach(([cat, meta]) => {
+            const items = grouped[cat];
+            const isUserCat = cat !== 'public';
+            html += '<div class="emg-category">';
+            html += '<div class="emg-cat-label">' + meta.label + '</div>';
+            if (items.length === 0 && isUserCat) {
+                html += '<div class="emg-empty">등록된 연락처 없음</div>';
+            } else {
+                items.forEach(c => {
+                    html += '<div class="emg-item ' + meta.cls + '">' +
+                        '<div class="emg-name">' +
+                            '<div class="emg-name-label">' + escapeHtml(c.name) + '</div>' +
+                            '<div class="emg-name-num">' + escapeHtml(c.number) + '</div>' +
+                        '</div>' +
+                        '<button class="emg-call" data-emg-action="call" data-num="' + escapeAttr(c.number) + '">📞 통화</button>' +
+                        (c.editable !== false ? '<button class="emg-edit" data-emg-action="edit" data-id="' + escapeAttr(c.id) + '">수정</button>' : '') +
+                        '</div>';
+                });
+            }
+            // 사용자 카테고리에는 추가 버튼
+            if (isUserCat) {
+                html += '<button class="emg-add-btn" data-emg-action="add" data-cat="' + cat + '">+ 추가</button>';
+            }
+            html += '</div>';
+        });
+        list.innerHTML = html;
+    }
+
+    // 이벤트 위임 — 긴급연락처 액션
+    document.getElementById('emergencyList').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-emg-action]');
+        if (!btn) return;
+        const action = btn.dataset.emgAction;
+        if (action === 'call') {
+            const num = btn.dataset.num;
+            window.location.href = 'tel:' + num;
+        } else if (action === 'add') {
+            await openContactForm(btn.dataset.cat, null);
+        } else if (action === 'edit') {
+            await openContactForm(null, btn.dataset.id);
+        }
+    });
+
+    // 연락처 추가/편집 폼 (커스텀 모달 활용)
+    async function openContactForm(category, editId) {
+        const isEdit = !!editId;
+        const existing = isEdit ? emergencyContacts.find(c => c.id === editId) : null;
+        if (isEdit && !existing) return;
+
+        const overlay = document.getElementById('customModal');
+        const box = document.getElementById('customModalBox');
+        const icon = document.getElementById('customModalIcon');
+        const title = document.getElementById('customModalTitle');
+        const body = document.getElementById('customModalBody');
+        const actions = document.getElementById('customModalActions');
+
+        box.className = 'modal-box info';
+        icon.innerText = isEdit ? '✏️' : '➕';
+        title.innerText = isEdit ? '연락처 수정' : '연락처 추가';
+        body.style.textAlign = 'left';
+
+        const initCat = isEdit ? existing.category : category;
+        const userCats = ['platform', 'insurance', 'org', 'other'];
+        let catPickerHtml = '<div class="emg-form-label">분류</div><div class="emg-cat-picker">';
+        userCats.forEach(c => {
+            const sel = c === initCat ? ' selected' : '';
+            catPickerHtml += '<button type="button" class="emg-cat-pick-btn' + sel + '" data-pick="' + c + '">' + EMG_CATEGORIES[c].label + '</button>';
+        });
+        catPickerHtml += '</div>';
+
+        body.innerHTML =
+            '<div class="emg-form-label">이름 (예: 배민 고객센터)</div>' +
+            '<input type="text" class="emg-form-input" id="emgFormName" maxlength="30" value="' + (isEdit ? escapeAttr(existing.name) : '') + '" placeholder="이름 입력">' +
+            '<div class="emg-form-label">전화번호 (숫자, 하이픈 가능)</div>' +
+            '<input type="tel" class="emg-form-input" id="emgFormNum" maxlength="20" value="' + (isEdit ? escapeAttr(existing.number) : '') + '" placeholder="01012345678 또는 1600-0000">' +
+            catPickerHtml;
+
+        // 카테고리 선택 핸들러
+        body.querySelectorAll('[data-pick]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                body.querySelectorAll('[data-pick]').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+        });
+
+        // 액션 버튼
+        actions.innerHTML = '';
+        const close = (saved) => {
+            overlay.classList.remove('open');
+            body.style.textAlign = '';
+            return saved;
+        };
+
+        return new Promise(resolve => {
+            // 삭제 버튼 (편집 시에만)
+            if (isEdit) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'modal-btn modal-btn-danger';
+                delBtn.innerText = '삭제';
+                delBtn.onclick = async () => {
+                    close();
+                    const ok = await showAlert({
+                        type: 'warn', icon: '🗑️', title: '연락처 삭제',
+                        message: '"' + existing.name + '" 을(를) 삭제하시겠습니까?',
+                        okText: '삭제', cancelText: '취소'
+                    });
+                    if (ok) {
+                        emergencyContacts = emergencyContacts.filter(c => c.id !== editId);
+                        saveEmergencyContacts();
+                        renderEmergencyList();
+                    }
+                    resolve();
+                };
+                actions.appendChild(delBtn);
+            }
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'modal-btn modal-btn-cancel';
+            cancelBtn.innerText = '취소';
+            cancelBtn.onclick = () => { close(); resolve(); };
+            actions.appendChild(cancelBtn);
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'modal-btn modal-btn-primary';
+            saveBtn.innerText = '저장';
+            saveBtn.onclick = () => {
+                const name = document.getElementById('emgFormName').value.trim();
+                const number = document.getElementById('emgFormNum').value.trim();
+                const selectedCat = body.querySelector('[data-pick].selected');
+                const cat = selectedCat ? selectedCat.dataset.pick : 'other';
+
+                if (!name || !number) {
+                    showAlert({ type: 'info', icon: '⚠️', title: '입력 확인', message: '이름과 전화번호를 모두 입력해주세요.' });
+                    return;
+                }
+                // 전화번호 유효성 (숫자, 하이픈, +만 허용)
+                if (!/^[0-9+\-\s]+$/.test(number)) {
+                    showAlert({ type: 'info', icon: '⚠️', title: '번호 형식', message: '전화번호는 숫자와 하이픈만 입력 가능합니다.' });
+                    return;
+                }
+
+                if (isEdit) {
+                    existing.name = name;
+                    existing.number = number;
+                    existing.category = cat;
+                } else {
+                    emergencyContacts.push({
+                        id: 'emg_' + Date.now() + '_' + Math.floor(Math.random()*1000),
+                        name, number, category: cat, editable: true
+                    });
+                }
+                saveEmergencyContacts();
+                renderEmergencyList();
+                close();
+                resolve();
+            };
+            actions.appendChild(saveBtn);
+
+            overlay.classList.add('open');
+            setTimeout(() => document.getElementById('emgFormName').focus(), 100);
+        });
+    }
+
+    // ===== SOS — 길게 눌러 119 다이얼 열기 + GPS 좌표 클립보드 복사 =====
+    // ※ 정책 준수: 자동 통화 연결 없음. 다이얼 화면만 호출되며,
+    //   실제 통화는 사용자가 다이얼 화면에서 통화 버튼을 직접 눌러야 발생함.
+    let sosPressTimer = null, sosProgressTimer = null;
+    const SOS_HOLD_MS = 2000;
+
+    function sosStart() {
+        const fill = document.getElementById('emgSosProgressFill');
+        const progress = document.getElementById('emgSosProgress');
+        progress.classList.add('active');
+        const startTime = Date.now();
+        sosProgressTimer = setInterval(() => {
+            const pct = Math.min(100, ((Date.now() - startTime) / SOS_HOLD_MS) * 100);
+            fill.style.width = pct + '%';
+        }, 50);
+        sosPressTimer = setTimeout(() => {
+            sosTrigger();
+            sosCleanup();
+        }, SOS_HOLD_MS);
+        if (navigator.vibrate) navigator.vibrate(50);
+    }
+    function sosCancel() {
+        sosCleanup();
+    }
+    function sosCleanup() {
+        clearTimeout(sosPressTimer);
+        clearInterval(sosProgressTimer);
+        sosPressTimer = null; sosProgressTimer = null;
+        const fill = document.getElementById('emgSosProgressFill');
+        const progress = document.getElementById('emgSosProgress');
+        if (fill) fill.style.width = '0%';
+        if (progress) progress.classList.remove('active');
+    }
+    async function sosTrigger() {
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+        // 위치 좌표 클립보드 복사
+        let coordText = '';
+        let coordCopied = false;
+        if (userLat && userLon) {
+            coordText = '현재 위치: ' + userLat.toFixed(6) + ', ' + userLon.toFixed(6) +
+                        '\n구글맵: https://maps.google.com/?q=' + userLat + ',' + userLon;
+            try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(coordText);
+                } else {
+                    // 폴백: textarea + execCommand
+                    const ta = document.createElement('textarea');
+                    ta.value = coordText;
+                    ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try { document.execCommand('copy'); } catch {}
+                    document.body.removeChild(ta);
+                }
+                coordCopied = true;
+                speakNotif('위치를 클립보드에 복사했습니다');
+            } catch (e) {
+                console.warn('클립보드 복사 실패:', e);
+            }
+        } else {
+            speakNotif('GPS 위치를 확인할 수 없습니다');
+        }
+        // 119 다이얼 열기 — 명시적 사용자 확인 후 다이얼 화면 호출 (자동 통화 X)
+        const msg = (coordCopied
+            ? '📍 GPS 좌표가 복사되었습니다.\n\n' + coordText + '\n\n'
+            : '⚠️ GPS 좌표를 가져올 수 없습니다.\n\n')
+            + '[다이얼 열기]를 누르면 119 다이얼 화면이 열립니다.\n다이얼 화면에서 통화 버튼을 직접 눌러 신고하세요.\n\n※ 본 앱은 자동으로 전화를 걸지 않습니다.';
+        const ok = await showAlert({
+            type: 'warn',
+            icon: '🚨',
+            title: '119 다이얼 열기',
+            message: msg,
+            okText: '다이얼 열기',
+            cancelText: '취소'
+        });
+        if (ok) {
+            // tel: URI 는 다이얼러를 열기만 함. 사용자가 통화 버튼을 직접 눌러야 통화됨.
+            window.location.href = 'tel:119';
+        }
+    }
+
+    // SOS 버튼 이벤트 바인딩 (DOM 준비 완료 후)
+    function bindSosEvents() {
+        const btn = document.getElementById('emgSosBtn');
+        if (!btn) return;
+        btn.addEventListener('mousedown', sosStart);
+        btn.addEventListener('mouseup', sosCancel);
+        btn.addEventListener('mouseleave', sosCancel);
+        btn.addEventListener('touchstart', e => { e.preventDefault(); sosStart(); }, { passive: false });
+        btn.addEventListener('touchend', sosCancel);
+        btn.addEventListener('touchcancel', sosCancel);
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindSosEvents);
+    } else {
+        bindSosEvents();
+    }
+
+    // ===== 시급 팝업 =====
+    function openWagePopup() {
+        document.getElementById('wageInput').value = '';
+        const logs = safeParse('gpn_workLogs', []);
+        const dateKey = new Date().toISOString().slice(0,10);
+        const existing = logs.find(l=>l.date===dateKey);
+        document.getElementById('wageResult').innerHTML = existing && existing.income > 0 ?
+            '<div style="color:var(--save-orange);font-size:0.75rem;margin-bottom:6px;">📋 이전 기록: '+existing.income.toLocaleString()+'원 (추가 입력 시 합산됩니다)</div>' : '';
+        document.getElementById('wageOverlay').classList.add('open');
+    }
+    function calcWage() {
+        const income = parseInt(document.getElementById('wageInput').value)||0;
+        if (income<=0||totalWorkMs<=0) { document.getElementById('wageResult').innerHTML=''; return; }
+        const logs=safeParse('gpn_workLogs',[]);
+        const dateKey=new Date().toISOString().slice(0,10);
+        const existing=logs.find(l=>l.date===dateKey);
+        const prevIncome=(existing&&existing.income)?existing.income:0;
+        const totalIncome=prevIncome+income;
+        const hours=totalWorkMs/3600000;
+        const wage=Math.round(totalIncome/hours);
+        let html='근무 '+hours.toFixed(1)+'시간 · '+deliveryCount+'건<br>시급 <b>'+wage.toLocaleString()+'원</b>';
+        if (prevIncome>0) html+='<br><span style="font-size:0.7rem;color:var(--save-orange);">이전 '+prevIncome.toLocaleString()+'원 + 이번 '+income.toLocaleString()+'원 = 총 '+totalIncome.toLocaleString()+'원</span>';
+        document.getElementById('wageResult').innerHTML=html;
+    }
+    async function closeWagePopup(save) {
+        if (save) {
+            const income=parseInt(document.getElementById('wageInput').value)||0;
+            if (income<=0) {
+                const ok = await showAlert({
+                    type: 'confirm', icon: '💰', title: '수입 미입력',
+                    message: '수입을 입력하지 않았습니다.\n기록하지 않고 닫을까요?',
+                    okText: '닫기', cancelText: '계속 입력'
+                });
+                if (!ok) return;
+                document.getElementById('wageOverlay').classList.remove('open'); return;
+            }
+            const logs=safeParse('gpn_workLogs',[]);
+            const dateKey=new Date().toISOString().slice(0,10);
+            const existIdx=logs.findIndex(l=>l.date===dateKey);
+            const prevIncome=(existIdx>-1&&logs[existIdx].income)?logs[existIdx].income:0;
+            const totalIncome=prevIncome+income;
+            const hours=totalWorkMs/3600000;
+            const wage=hours>0?Math.round(totalIncome/hours):0;
+            const record={date:dateKey,workMs:totalWorkMs,deliveries:deliveryCount,income:totalIncome,wage};
+            if (existIdx>-1) logs[existIdx]=record; else logs.push(record);
+            safeSet('gpn_workLogs',logs);
+        }
+        document.getElementById('wageOverlay').classList.remove('open');
+    }
+
+    // ===== 통계 시스템 (v1.0 신규) =====
+    let statsRange = 'week';       // today / week / month / all
+    let graphMetric = 'income';    // income / deliveries / wage
+
+    function openStats() {
+        renderStats();
+        document.getElementById('historyPage').classList.add('open');
+    }
+    function closeStats() { document.getElementById('historyPage').classList.remove('open'); }
+
+    function setStatsRange(range) {
+        statsRange = range;
+        document.querySelectorAll('.stats-tab').forEach(b => b.classList.toggle('active', b.dataset.range===range));
+        renderStats();
+    }
+
+    function setGraphMetric(metric) {
+        graphMetric = metric;
+        document.querySelectorAll('.stats-graph-btn').forEach(b => b.classList.toggle('active', b.dataset.metric===metric));
+        renderGraph();
+    }
+
+    function getFilteredLogs(logs, range) {
+        if (range === 'all') return logs;
+        const now = new Date();
+        const today = now.toISOString().slice(0,10);
+        if (range === 'today') return logs.filter(l => l.date === today);
+        if (range === 'week') {
+            // 이번주: 월요일 ~ 일요일 (현지 기준)
+            const d = new Date(); const day = d.getDay() || 7; // 일요일=7
+            d.setDate(d.getDate() - day + 1);
+            const monday = d.toISOString().slice(0,10);
+            return logs.filter(l => l.date >= monday);
+        }
+        if (range === 'month') {
+            const ym = today.slice(0,7); // YYYY-MM
+            return logs.filter(l => l.date.startsWith(ym));
+        }
+        return logs;
+    }
+
+    function renderStats() {
+        const logs = safeParse('gpn_workLogs', []);
+        const filtered = getFilteredLogs(logs, statsRange);
+
+        // 요약 카드
+        const totalIncome = filtered.reduce((s,l)=>s+(l.income||0),0);
+        const totalMs = filtered.reduce((s,l)=>s+(l.workMs||0),0);
+        const totalHours = totalMs / 3600000;
+        const avgWage = totalHours > 0 ? Math.round(totalIncome / totalHours) : 0;
+        const totalDeliveries = filtered.reduce((s,l)=>s+(l.deliveries||0),0);
+        const avgIncomePerDelivery = totalDeliveries > 0 ? Math.round(totalIncome / totalDeliveries) : 0;
+
+        const labels = { today:'오늘', week:'이번주', month:'이번달', all:'전체' };
+        document.getElementById('statsSummaryLabel').innerText = labels[statsRange] + ' 수입';
+        document.getElementById('statsSummaryValue').innerText = totalIncome.toLocaleString() + '원';
+        document.getElementById('statsSummarySub').innerText = '평균시급 ' + avgWage.toLocaleString() + '원';
+
+        // 지표 카드
+        document.getElementById('statsCardDeliveries').innerText = totalDeliveries + '건';
+        document.getElementById('statsCardHours').innerText = totalHours.toFixed(1) + '시간';
+        document.getElementById('statsCardAvgIncome').innerText = avgIncomePerDelivery.toLocaleString() + '원';
+        document.getElementById('statsCardDays').innerText = filtered.length + '일';
+
+        // 그래프 (항상 최근 7일 — 탭과 무관)
+        renderGraph();
+
+        // 일별 리스트 (필터링된 기간)
+        const listEl = document.getElementById('historyList');
+        if (filtered.length === 0) {
+            listEl.innerHTML = '<div class="history-empty">선택한 기간에 기록이 없습니다</div>';
+        } else {
+            const sorted = [...filtered].sort((a,b)=>b.date.localeCompare(a.date));
+            listEl.innerHTML = sorted.map(log=>{
+                const h = (log.workMs/3600000).toFixed(1);
+                return '<div class="history-item">'+
+                    '<div class="history-date">'+escapeHtml(log.date)+'</div>'+
+                    '<div class="history-row"><span>근무시간</span><span>'+h+'시간</span></div>'+
+                    '<div class="history-row"><span>건수</span><span>'+log.deliveries+'건</span></div>'+
+                    '<div class="history-row"><span>수입</span><span>'+(log.income||0).toLocaleString()+'원</span></div>'+
+                    '<div class="history-row"><span>시급</span><span style="color:var(--main-green)">'+(log.wage||0).toLocaleString()+'원</span></div>'+
+                    '</div>';
+            }).join('');
+        }
+    }
+
+    function renderGraph() {
+        const logs = safeParse('gpn_workLogs', []);
+        // 최근 7일 (오늘 포함)
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            days.push(d.toISOString().slice(0,10));
+        }
+        const data = days.map(date => {
+            const log = logs.find(l => l.date === date);
+            const val = log ? (log[graphMetric] || 0) : 0;
+            const dayLabel = new Date(date).toLocaleDateString('ko-KR',{weekday:'short'}).replace('요일','');
+            return { date, val, dayLabel };
+        });
+        const maxVal = Math.max(...data.map(d=>d.val), 1);
+        const unit = graphMetric==='income' ? '원' : graphMetric==='deliveries' ? '건' : '원';
+        const formatter = v => graphMetric==='deliveries' ? v : (v>=1000 ? Math.round(v/1000)+'k' : v);
+
+        const barsEl = document.getElementById('statsBars');
+        barsEl.innerHTML = data.map(d => {
+            const heightPct = d.val > 0 ? Math.max(3, (d.val / maxVal) * 100) : 2;
+            const valText = d.val > 0 ? formatter(d.val) + (graphMetric==='deliveries'?'':'') : '-';
+            return '<div class="stats-bar-col">' +
+                '<div class="stats-bar-val">'+valText+'</div>' +
+                '<div class="stats-bar '+(d.val>0?'':'empty')+'" style="height:'+heightPct+'%;"></div>' +
+                '<div class="stats-bar-label">'+d.dayLabel+'</div>' +
+            '</div>';
+        }).join('');
+    }
+
+    // ===== 설정 페이지 (v1.0 신규) =====
+    function openSettings() {
+        // 현재 설정값 UI에 반영
+        document.querySelectorAll('.settings-preset-btn[data-rate]').forEach(b =>
+            b.classList.toggle('active', parseFloat(b.dataset.rate) === userSettings.ttsRate));
+        document.querySelectorAll('.settings-preset-btn[data-dist]').forEach(b =>
+            b.classList.toggle('active', parseFloat(b.dataset.dist) === userSettings.proxDist));
+        document.querySelectorAll('.settings-preset-btn[data-speed]').forEach(b =>
+            b.classList.toggle('active', parseInt(b.dataset.speed) === userSettings.proxSpeed));
+        const volPct = Math.round((userSettings.ttsVolume || 1) * 100);
+        document.getElementById('volumeSlider').value = volPct;
+        document.getElementById('volumeValue').innerText = volPct + '%';
+        // v4.6: 안전 멘트 토글 상태 반영
+        const safetyToggle = document.getElementById('safetyMsgToggle');
+        if (safetyToggle) safetyToggle.checked = userSettings.safetyMsg !== false;
+        document.getElementById('settingsPage').classList.add('open');
+    }
+    function closeSettings() { document.getElementById('settingsPage').classList.remove('open'); }
+
+    function setTtsRate(rate) {
+        userSettings.ttsRate = rate;
+        saveSettings();
+        document.querySelectorAll('.settings-preset-btn[data-rate]').forEach(b =>
+            b.classList.toggle('active', parseFloat(b.dataset.rate) === rate));
+    }
+    // v4.6: 안전 멘트 토글
+    function toggleSafetyMsg(enabled) {
+        userSettings.safetyMsg = !!enabled;
+        saveSettings();
+    }
+    function setTtsVolume(pct) {
+        userSettings.ttsVolume = parseInt(pct) / 100;
+        saveSettings();
+        document.getElementById('volumeValue').innerText = pct + '%';
+    }
+    function setProxDist(dist) {
+        userSettings.proxDist = dist;
+        saveSettings();
+        document.querySelectorAll('.settings-preset-btn[data-dist]').forEach(b =>
+            b.classList.toggle('active', parseFloat(b.dataset.dist) === dist));
+    }
+    function setProxSpeed(speed) {
+        userSettings.proxSpeed = speed;
+        saveSettings();
+        document.querySelectorAll('.settings-preset-btn[data-speed]').forEach(b =>
+            b.classList.toggle('active', parseInt(b.dataset.speed) === speed));
+    }
+    function testTts() {
+        // v4.7: 실제 시작 멘트와 동일한 문구로 변경
+        // 사용자가 음성 테스트만 해도 앱의 톤을 미리 체험 가능
+        speakDirect('안녕하세요. 오늘도 안전한 운행 부탁드려요.');
+    }
+
+    // ===== v1.0.4: 근무시간/건수 초기화 =====
+    // 토탈 근무시간과 배달 건수만 0으로. 저장된 장소·근무 기록·설정값은 유지.
+    async function resetWorkData() {
+        if (isWorking) {
+            await showAlert({
+                type: 'info', icon: '⚠️', title: '근무 중에는 초기화 불가',
+                message: '먼저 STOP 버튼을 눌러 근무를 종료해주세요.',
+                okText: '확인'
+            });
+            return;
+        }
+        const ok = await showAlert({
+            type: 'warn', icon: '⏱',
+            title: '근무 시간 · 건수 초기화',
+            message: '총 근무시간과 배달 건수가 0으로 초기화됩니다.\n\n저장된 장소와 근무 기록(일별 수입·시급)은 그대로 유지됩니다.\n\n계속하시겠습니까?',
+            okText: '초기화', cancelText: '취소'
+        });
+        if (!ok) return;
+
+        totalWorkMs = 0;
+        deliveryCount = 0;
+        deliveryTimestamps = [];
+        localStorage.setItem('gpn_totalWorkMs', '0');
+        localStorage.setItem('gpn_deliveryCount', '0');
+        localStorage.removeItem('gpn_deliveryTimestamps');
+
+        updateTimerDisplay(totalWorkMs);
+        const cntEl = document.getElementById('deliveryCount');
+        if (cntEl) cntEl.innerText = '0';
+
+        await showAlert({
+            type: 'info', icon: '✅', title: '초기화 완료',
+            message: '근무 시간과 건수가 0으로 초기화되었습니다.',
+            okText: '확인'
+        });
+    }
+
+    // ===== 백업/복원 =====
+    function exportBackup() {
+        const data = {
+            places: places,                              // v5+ 신규 필드
+            emergencyContacts: emergencyContacts,
+            gpn_workLogs: safeParse('gpn_workLogs',[]),
+            totalWorkMs: localStorage.getItem('gpn_totalWorkMs')||'0',
+            deliveryCount: localStorage.getItem('gpn_deliveryCount')||'0',
+            deliveryTimestamps: safeParse('gpn_deliveryTimestamps',[]),
+            gpn_settings: userSettings,  // v1.0: 사용자 설정값 포함
+            exportDate: new Date().toISOString(),
+            version: STORAGE_VERSION
+        };
+        const encrypted=encrypt(data,appPin);
+        const blob=new Blob([encrypted],{type:'text/plain'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        const d=new Date();
+        const ds=d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+        a.href=url; a.download='gpn_backup_'+ds+'.enc'; a.click();
+        URL.revokeObjectURL(url);
+        localStorage.setItem('gpn_lastBackupDate', Date.now().toString());
+    }
+
+    async function importBackup(event) {
+        const file=event.target.files[0]; if(!file) return;
+        // 복원 전 확인
+        const ok = await showAlert({
+            type: 'warn', icon: '⚠️', title: '백업 복원',
+            message: '현재 저장된 모든 데이터가 백업 파일로 덮어씌워집니다.\n계속하시겠습니까?\n\n※ 같은 PIN으로 만든 백업 파일이어야 합니다.',
+            okText: '복원', cancelText: '취소'
+        });
+        if (!ok) { event.target.value=''; return; }
+        const reader=new FileReader();
+        reader.onload=async function(e){
+            const content=e.target.result;
+            let data=decrypt(content,appPin);
+            if (!data) { try{data=JSON.parse(content);}catch{data=null;} }
+            if (!data) {
+                await showAlert({
+                    type: 'warn', icon: '❌', title: '복원 실패',
+                    message: 'PIN이 다르거나 파일이 손상되었습니다.\n백업 시 사용한 PIN과 동일한 PIN으로 잠금해제 후 복원하세요.'
+                });
+                return;
+            }
+            // v5+: 'places' 필드 우선 / 구버전 백업: 'apts' 필드 호환
+            const placesField = data.places || data.apts;
+            if (placesField) {
+                places=placesField.map(a=>{
+                    if(a.memo===undefined)a.memo='';
+                    return a;
+                });
+                savePlacesEncrypted(places,appPin);
+            }
+            if (Array.isArray(data.emergencyContacts)) {
+                emergencyContacts = data.emergencyContacts;
+                saveEmergencyContacts();
+            }
+            if (data.rm_workLogs) safeSet('gpn_workLogs',data.rm_workLogs);
+            if (data.gpn_workLogs) safeSet('gpn_workLogs',data.gpn_workLogs);
+            if (data.totalWorkMs) safeSet('gpn_totalWorkMs',data.totalWorkMs);
+            if (data.deliveryCount) safeSet('gpn_deliveryCount',data.deliveryCount);
+            if (data.deliveryTimestamps) safeSet('gpn_deliveryTimestamps',data.deliveryTimestamps);
+            // v1.0: 사용자 설정값 복원
+            if (data.gpn_settings && typeof data.gpn_settings === 'object') {
+                userSettings = { ...SETTINGS_DEFAULTS, ...data.gpn_settings };
+                saveSettings();
+            }
+            totalWorkMs=parseInt(data.totalWorkMs)||0;
+            deliveryCount=parseInt(data.deliveryCount)||0;
+            deliveryTimestamps=data.deliveryTimestamps||[];
+            document.getElementById('deliveryCount').innerText=deliveryCount;
+            updateTimerDisplay(totalWorkMs);
+            refreshTimerView();
+            renderList();
+            await showAlert({
+                type: 'info', icon: '✅', title: '복원 완료',
+                message: '백업 파일에서 데이터를 성공적으로 복원했습니다.'
+            });
+            openStats();
+        };
+        reader.readAsText(file); event.target.value='';
+    }
+
+    // ===== 카카오맵 SDK =====
+    function waitKakao(callback, startTime) {
+        if (!startTime) startTime=Date.now();
+        if (window.kakao&&kakao.maps&&kakao.maps.load) { kakao.maps.load(callback); }
+        else if (Date.now()-startTime>30000) { console.warn('Kakao SDK load timeout'); }
+        else { setTimeout(()=>waitKakao(callback,startTime),100); }
+    }
+    waitKakao(()=>{/* SDK 로드 완료 */});
+
+    // ===== 서비스워커 등록 =====
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .catch(err => console.warn('[SW] 등록 실패:', err));
+        });
+    }
+
+</script>
+</body>
+</html>

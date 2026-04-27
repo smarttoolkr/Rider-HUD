@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>이용약관 — HUD for Riders</title>
+    <style>
+        :root {
+            --green: #00ff41;
+            --bg: #000;
+            --card: #0d0d0d;
+            --border: #1a1a1a;
+            --text: #ccc;
+            --muted: #555;
+            --orange: #f39c12;
+            --red: #ff3e3e;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+            font-size: 0.88rem;
+            line-height: 1.8;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .header {
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 20px 18px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-logo {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: var(--green);
+            letter-spacing: 6px;
+        }
+        .header-sub {
+            font-size: 0.65rem;
+            color: var(--muted);
+            letter-spacing: 2px;
+            margin-top: 2px;
+        }
+        .header-title {
+            font-size: 0.75rem;
+            color: #fff;
+            font-weight: 700;
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        .content {
+            padding: 20px;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .effective-banner {
+            background: rgba(0, 255, 65, 0.06);
+            border: 1px solid rgba(0, 255, 65, 0.2);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 24px;
+            font-size: 0.75rem;
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        .section {
+            margin-bottom: 28px;
+        }
+        .section-num {
+            font-size: 0.6rem;
+            color: var(--green);
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-body {
+            color: var(--text);
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 0.82rem;
+        }
+        .info-table th {
+            background: #111;
+            color: var(--green);
+            font-weight: 700;
+            padding: 10px 12px;
+            text-align: left;
+            border: 1px solid var(--border);
+            white-space: nowrap;
+            width: 30%;
+        }
+        .info-table td {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            color: var(--text);
+            vertical-align: top;
+        }
+
+        .dot-list {
+            padding-left: 4px;
+            margin: 8px 0;
+        }
+        .dot-list li {
+            list-style: none;
+            padding-left: 14px;
+            position: relative;
+            margin-bottom: 4px;
+            color: var(--text);
+        }
+        .dot-list li::before {
+            content: '·';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+            font-weight: 900;
+        }
+
+        .num-list {
+            padding-left: 4px;
+            margin: 8px 0;
+            counter-reset: item;
+        }
+        .num-list li {
+            list-style: none;
+            padding-left: 22px;
+            position: relative;
+            margin-bottom: 6px;
+            color: var(--text);
+            counter-increment: item;
+        }
+        .num-list li::before {
+            content: counter(item) '.';
+            position: absolute;
+            left: 0;
+            color: var(--green);
+            font-weight: 700;
+            font-size: 0.78rem;
+        }
+
+        .card-box {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin: 10px 0;
+        }
+        .card-box-title {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .highlight-box {
+            background: rgba(0, 255, 65, 0.04);
+            border: 1px solid rgba(0, 255, 65, 0.15);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .highlight-box b { color: var(--green); }
+
+        .warn-box {
+            background: rgba(255, 62, 62, 0.05);
+            border: 1px solid rgba(255, 62, 62, 0.2);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin: 10px 0;
+            font-size: 0.8rem;
+            color: #aaa;
+        }
+        .warn-box b { color: var(--red); }
+
+        .contact-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 16px;
+            margin: 10px 0;
+        }
+        .contact-label {
+            font-size: 0.65rem;
+            color: var(--green);
+            font-weight: 700;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .contact-name {
+            font-size: 1rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .contact-detail {
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+        .contact-detail a {
+            color: var(--green);
+            text-decoration: none;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 0.65rem;
+            color: var(--muted);
+            letter-spacing: 1px;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin: 16px 20px 0;
+            padding: 10px 18px;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--green);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-logo">HUD</div>
+    <div class="header-sub">for Riders · Smart Tool Korea</div>
+    <div class="header-title">이용약관</div>
+</div>
+
+<button class="back-btn" onclick="history.back()">← 돌아가기</button>
+
+<div class="content">
+
+    <div class="effective-banner">
+        📋 시행일: 2026년 4월 20일 &nbsp;|&nbsp; 버전: v1.1
+    </div>
+
+    <!-- 1. 목적 -->
+    <div class="section">
+        <div class="section-num">Article 01</div>
+        <div class="section-title">목적</div>
+        <div class="section-body">
+            본 약관은 Smart Tool Korea(이하 "운영자")가 제공하는 HUD for Riders(이하 "앱" 또는 "서비스")의 이용 조건 및 운영자와 이용자 간의 권리·의무 관계를 규정함을 목적으로 합니다.
+        </div>
+    </div>
+
+    <!-- 2. 정의 -->
+    <div class="section">
+        <div class="section-num">Article 02</div>
+        <div class="section-title">용어 정의</div>
+        <div class="section-body">
+            <table class="info-table">
+                <tr>
+                    <th>서비스</th>
+                    <td>HUD for Riders 앱이 제공하는 GPS 핀 메모, 근무 타이머, 배달 카운터 등 모든 기능</td>
+                </tr>
+                <tr>
+                    <th>이용자</th>
+                    <td>본 약관에 동의하고 서비스를 이용하는 자</td>
+                </tr>
+                <tr>
+                    <th>운영자</th>
+                    <td>Smart Tool Korea — 서비스를 개발·운영하는 주체</td>
+                </tr>
+                <tr>
+                    <th>GPS 핀</th>
+                    <td>이용자가 저장한 위치 좌표 및 관련 메모 데이터</td>
+                </tr>
+                <tr>
+                    <th>콘텐츠</th>
+                    <td>이용자가 앱 내에 입력·저장하는 모든 데이터(장소명, 메모 등)</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- 3. 약관 동의 및 효력 -->
+    <div class="section">
+        <div class="section-num">Article 03</div>
+        <div class="section-title">약관 동의 및 효력</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>이용자는 앱 최초 실행 시 본 약관에 동의함으로써 서비스를 이용할 수 있습니다.</li>
+                <li>이용자가 동의 버튼을 클릭하면 본 약관의 내용을 이해하고 동의한 것으로 간주합니다.</li>
+                <li>만 14세 미만 이용자는 법정대리인의 동의를 받아야 합니다.</li>
+                <li>본 약관은 공지 후 7일 이내에 이의를 제기하지 않으면 동의한 것으로 간주합니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 4. 서비스 내용 -->
+    <div class="section">
+        <div class="section-num">Article 04</div>
+        <div class="section-title">서비스 내용</div>
+        <div class="section-body">
+            운영자는 다음의 기능을 제공합니다.
+            <ul class="dot-list" style="margin-top:10px;">
+                <li>GPS 핀 저장 및 메모 관리 (암호화 저장)</li>
+                <li>저장된 위치와의 실시간 거리 계산 및 근접 음성 알림</li>
+                <li>근무 시간 타이머 및 배달 건수 카운터</li>
+                <li>현재 위치 기반 날씨 정보 (Open-Meteo 연동)</li>
+                <li>현재 위치 기반 주소 자동 완성 (카카오 지도 API 연동)</li>
+                <li>근무 기록 저장 및 시급 계산</li>
+                <li>데이터 백업 및 복원</li>
+            </ul>
+            <div class="highlight-box" style="margin-top:12px;">
+                서비스는 <b>현장 업무 보조 도구</b>로 제공됩니다. 운영자는 서비스의 정확성·완전성을 보장하지 않으며, 업무 판단의 최종 책임은 이용자에게 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. 이용자 의무 -->
+    <div class="section">
+        <div class="section-num">Article 05</div>
+        <div class="section-title">이용자 의무</div>
+        <div class="section-body">
+            이용자는 다음 행위를 하여서는 안 됩니다.
+            <ul class="num-list" style="margin-top:10px;">
+                <li>타인의 개인정보, 위치정보를 무단으로 수집·저장하는 행위</li>
+                <li>타인을 추적·감시하거나 스토킹 목적으로 앱을 사용하는 행위</li>
+                <li>운영자 또는 제3자의 지식재산권을 침해하는 행위</li>
+                <li>앱의 정상적인 운영을 방해하거나 역공학(리버스 엔지니어링)을 시도하는 행위</li>
+                <li>법령 또는 공공질서에 위반되는 목적으로 서비스를 이용하는 행위</li>
+                <li>운영자의 사전 동의 없이 서비스를 상업적으로 이용하는 행위</li>
+            </ul>
+            <div class="warn-box" style="margin-top:12px;">
+                <b>위반 시:</b> 운영자는 사전 통보 없이 서비스 이용을 제한하거나 관련 법령에 따라 조치할 수 있습니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. 이용자 데이터 -->
+    <div class="section">
+        <div class="section-num">Article 06</div>
+        <div class="section-title">이용자 데이터 및 콘텐츠</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>이용자가 앱에 저장하는 모든 데이터(GPS 핀, 메모, 근무 기록)는 <b style="color:#fff;">이용자 본인의 기기에만 저장</b>됩니다.</li>
+                <li>운영자는 이용자 데이터에 접근하거나 이를 수집·분석하지 않습니다.</li>
+                <li>데이터의 관리 및 보안 책임은 이용자 본인에게 있습니다.</li>
+                <li>앱 삭제, 기기 초기화, PIN 초기화 시 데이터가 영구 삭제될 수 있으며, 운영자는 데이터 복구 의무를 지지 않습니다.</li>
+                <li>백업 기능을 통해 생성된 파일의 보관 책임은 이용자에게 있습니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 7. 운영자 의무 -->
+    <div class="section">
+        <div class="section-num">Article 07</div>
+        <div class="section-title">운영자 의무</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>운영자는 관련 법령과 본 약관이 금지하는 행위를 하지 않습니다.</li>
+                <li>서비스 개선 및 버그 수정을 위해 지속적으로 노력합니다.</li>
+                <li>이용자의 개인정보를 처리방침에 따라 안전하게 관리합니다.</li>
+                <li>이용자가 문의한 경우 영업일 기준 3일 이내에 답변합니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 8. 서비스 제공 중단 -->
+    <div class="section">
+        <div class="section-num">Article 08</div>
+        <div class="section-title">서비스 제공 중단 및 변경</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>운영자는 서비스의 전부 또는 일부를 변경·중단할 수 있습니다.</li>
+                <li>서비스 변경·중단 시 앱 내 공지 또는 이메일로 30일 전 사전 공지합니다. 단, 긴급한 경우 즉시 중단 후 공지할 수 있습니다.</li>
+                <li>외부 서비스(카카오 지도, Open-Meteo) 정책 변경으로 인한 기능 제한에 대해 운영자는 책임을 지지 않습니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 9. 면책 조항 -->
+    <div class="section">
+        <div class="section-num">Article 09</div>
+        <div class="section-title">면책 조항</div>
+        <div class="section-body">
+            운영자는 다음의 경우 책임을 지지 않습니다.
+            <ul class="num-list" style="margin-top:10px;">
+                <li>GPS 신호 오차, 기기 성능 차이로 인한 위치 부정확</li>
+                <li>날씨 정보의 부정확 또는 서비스 지연</li>
+                <li>이용자의 부주의 또는 귀책 사유로 인한 데이터 손실</li>
+                <li>이용자가 앱을 이용하여 제3자에게 끼친 손해</li>
+                <li>천재지변, 불가항력, 통신 장애로 인한 서비스 중단</li>
+                <li>이용자 기기의 분실·도난으로 인한 데이터 유출</li>
+                <li>운전 중 앱 사용으로 인한 사고 또는 법규 위반</li>
+            </ul>
+            <div class="warn-box" style="margin-top:12px;">
+                <b>⚠️ 안전 주의:</b> 운전 중 앱 조작은 도로교통법 위반이며 사고를 유발할 수 있습니다. 앱은 차량 정지 상태에서만 조작하시기 바랍니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. SOS·긴급연락처 면책 -->
+    <div class="section">
+        <div class="section-num">Article 10</div>
+        <div class="section-title">SOS · 긴급연락처 기능 관련 면책</div>
+        <div class="section-body">
+            <p style="margin-bottom:12px;">앱은 이용자 편의를 위해 SOS 신고 보조 기능 및 긴급연락처 빠른 접근 기능을 제공하며, 다음 사항을 명확히 고지합니다.</p>
+            <ul class="num-list">
+                <li><b>자동 통화 없음:</b> SOS 기능은 119 다이얼 화면을 호출하는 기능에 한합니다. 실제 통화 연결은 이용자가 다이얼 화면에서 통화 버튼을 직접 눌러야 발생합니다. 앱이 임의로 전화를 걸지 않습니다.</li>
+                <li><b>좌표 복사 기능:</b> SOS 작동 시 GPS 좌표가 클립보드에 복사되며, 신고 시 이용자가 직접 좌표를 신고 통화 중 구두로 전달하거나 메시지로 붙여넣어 사용할 수 있습니다.</li>
+                <li><b>응급상황 대체 불가:</b> 본 기능은 응급통신서비스를 대체하지 않습니다. 응급상황 시 반드시 119, 112 등 공식 응급 연락처에 직접 연락하시기 바랍니다.</li>
+                <li><b>기기·통신 의존:</b> SOS 기능은 이용자 기기의 GPS 수신 상태, 클립보드 권한, 다이얼러 앱 가용성에 의존합니다. 이러한 환경 요인으로 인한 기능 장애에 대해 운영자는 책임을 지지 않습니다.</li>
+                <li><b>긴급연락처 정확성:</b> 이용자가 직접 등록하는 긴급연락처(보험사·플랫폼·소속 등)의 정확성은 이용자 본인의 책임이며, 잘못된 번호로 인한 손해에 대해 운영자는 책임을 지지 않습니다.</li>
+                <li><b>오작동 방지 책임:</b> SOS 버튼은 오작동 방지를 위해 2초 길게 누름 + 사용자 확인 모달의 2단계 절차를 거치도록 설계되었습니다. 이용자의 부주의로 인한 119 오발신 시 발생하는 모든 책임은 이용자에게 있습니다.</li>
+            </ul>
+            <div class="warn-box" style="margin-top:12px;">
+                <b>⚠️ 중요:</b> 본 SOS 기능은 응급 보조 도구이며 응급통신서비스가 아닙니다. 생명·신체에 위협이 되는 응급상황에서는 본 앱에 의존하지 마시고 119에 직접 연락하시기 바랍니다.
+            </div>
+        </div>
+    </div>
+
+    <!-- 11. 지식재산권 -->
+    <div class="section">
+        <div class="section-num">Article 11</div>
+        <div class="section-title">지식재산권</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>앱의 디자인, 로고, 소스코드, UI 구성 등에 관한 지식재산권은 운영자에게 귀속됩니다.</li>
+                <li>이용자는 운영자의 사전 동의 없이 앱을 복제·수정·배포·판매할 수 없습니다.</li>
+                <li>이용자가 앱에 저장한 데이터(장소명, 메모 등)의 소유권은 이용자에게 있습니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 12. 약관 변경 -->
+    <div class="section">
+        <div class="section-num">Article 12</div>
+        <div class="section-title">약관 변경</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>운영자는 필요한 경우 약관을 변경할 수 있습니다.</li>
+                <li>변경 시 앱 내 공지 또는 이메일을 통해 시행일 7일 전 공지합니다.</li>
+                <li>이용자가 변경된 약관에 동의하지 않는 경우 앱 이용을 중단할 수 있습니다.</li>
+                <li>변경 공지 후 계속 이용하면 변경된 약관에 동의한 것으로 간주합니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 13. 준거법 및 분쟁 해결 -->
+    <div class="section">
+        <div class="section-num">Article 13</div>
+        <div class="section-title">준거법 및 분쟁 해결</div>
+        <div class="section-body">
+            <ul class="num-list">
+                <li>본 약관은 대한민국 법령에 따라 해석됩니다.</li>
+                <li>서비스와 관련된 분쟁은 운영자와 이용자 간의 협의를 통해 해결하는 것을 원칙으로 합니다.</li>
+                <li>협의로 해결되지 않는 경우 관할 법원은 민사소송법에 따릅니다.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 14. 문의 -->
+    <div class="section">
+        <div class="section-num">Article 14</div>
+        <div class="section-title">문의</div>
+        <div class="section-body">
+            <div class="contact-card">
+                <div class="contact-label">CONTACT</div>
+                <div class="contact-name">Smart Tool Korea</div>
+                <div class="contact-detail">
+                    이메일: <a href="mailto:smart.tool.kr@gmail.com">smart.tool.kr@gmail.com</a><br>
+                    카카오톡 오픈채팅: <a href="https://open.kakao.com/o/gvZXDbmi" target="_blank" style="color:var(--orange);">HUD for Riders 베타 테스터</a><br>
+                    응답 기간: 영업일 기준 3일 이내
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="footer">
+    © 2026 Smart Tool Korea · HUD for Riders<br>
+    본 약관은 2026년 4월 20일부터 시행됩니다.
+</div>
+
+</body>
+</html>
